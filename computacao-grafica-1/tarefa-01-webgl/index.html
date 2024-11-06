@@ -5,33 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esfera</title>
 </head>
+
 <script id="vertex-shader-2d" type="x-shader/x-vertex">
-    // an attribute will receive data from a buffer
     attribute vec4 a_position;
-   
-    // all shaders have a main function
+
     void main() {
-   
-      // gl_Position is a special variable a vertex shader
-      // is responsible for setting
       gl_Position = a_position;
     }
-  </script>
+</script>
    
-  <script id="fragment-shader-2d" type="x-shader/x-fragment">
-    // fragment shaders don't have a default precision so we need
-    // to pick one. mediump is a good default
+<script id="fragment-shader-2d" type="x-shader/x-fragment">
     precision mediump float;
    
     void main() {
-      // gl_FragColor is a special variable a fragment shader
-      // is responsible for setting
-      gl_FragColor = vec4(1, 0, 0.5, 1); // return reddish-purple
+      gl_FragColor = vec4(1, 0, 0.5, 1); // reddish-purple
     }
-  </script>
+</script>
+
 <body>
     <canvas id="c" width="400px" height="300px" ></canvas>
 </body>
+
 <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+<script src="js/helper.js"></script>
 <script src="js/index.js"></script>
 </html>
