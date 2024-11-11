@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esfera com RayCasting</title>
+    <style>
+        /* Centraliza conteúdo: */ body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        /* Define borda para o Canvas: */ canvas { border: 1px solid black; }
+    </style>
+</head>
+<body><canvas id="canvas" width="500" height="500"></canvas></body>
+<script src="js/renderer.js"></script>
+<script>
+    const bgColor = [0.39, 0.39, 0.39]
+    const params = {
+        // tela
+            "nCol": 500,
+            "nLin": 500,
+        // camera
+            "wJanela": 60,
+            "hJanela": 60,
+            "dJanela":-30,
+        // esfera
+            "rEsfera": 40,
+            "centroEsfera": [0, 0, -100],
+        // cores
+            "bgColor": bgColor,
+        // iluminação
+            // fonte pontual de luz
+                "lightSourceIntensity": [0.7, 0.7, 0.7],
+                "lightSourcePosition": [0, 60, -30],
+            // luz ambiente
+                "ambientLightIntensity": [0.3, 0.3, 0.3],
+            // esfera
+                "sphereAmbientReflection": [0.7, 0.2, 0.2],
+                "sphereDiffuseReflection": [0.7, 0.2, 0.2],
+                "sphereSpecularReflection": [0.7, 0.2, 0.2],
+                "sphereShininess": 10.0,
+            // chão
+                "floorPosition": [0, -40, 0],
+                "floorNormal": [0, 1, 0],
+                "floorAmbientReflection": [0.2, 0.7, 0.2],
+                "floorDiffuseReflection": [0.2, 0.7, 0.2],
+                "floorSpecularReflection": [0.0, 0.0, 0.0],
+                "floorShininess": 1.0,
+            // plano de fundo
+                "backgroundPosition": [0, 0, -200],
+                "backgroundNormal": [0, 0, 1],
+                "backgroundAmbientReflection": [0.3, 0.3, 0.7],
+                "backgroundDiffuseReflection": [0.3, 0.3, 0.7],
+                "backgroundSpecularReflection": [0.0, 0.0, 0.0],
+                "backgroundShininess": 1.0,
+    }
+
+    renderer = new Renderer();
+
+    vertices = [
+        // Dois triângulos
+        // x,  y
+          -1, -1,
+           1, -1,
+          -1,  1,
+          -1,  1,
+           1, -1,
+           1,  1,
+    ]
+    
+    renderer.setPositionBuffer(vertices)
+    renderer.setParams(params)
+    renderer.clear(bgColor)
+    renderer.render()
+</script>
+</html>
