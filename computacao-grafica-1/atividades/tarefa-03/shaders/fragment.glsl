@@ -99,8 +99,59 @@ void main() {
         // Cor final
         vec3 seenColor = ambientLighting + diffuseLighting + specularLighting; // Ieye = Iamb + Idif + Ispec
         gl_FragColor = vec4(seenColor, 1.0);
-    } else {
-        // Sem interseção
-        gl_FragColor = vec4(bgColor, 1.0);
+
+        return;
+    } 
+
+    // Se não houver interseção com a esfera, então verificamos se o raio intercepta o chão.
+    // Somente se o raio interceptar o chão, então a cor do chão será exibida.
+    if (dot(floorNormal, ray) != 0.0) {
+        // Interseção
+        float t = dot(floorNormal, floorPosition - origin) / dot(floorNormal, ray);
+        vec3 intersectionPoint = origin + t * ray; // p(t) = p0 + t * dr
+
+        // Iluminação ambiente do chão
+        vec3 ambientLighting = floorAmbientReflection * ambientLightIntensity; // Iamb = Ka * Ia
+
+        // Iluminação difusa do chão
+        vec3 l = normalize(lightSourcePosition - intersectionPoint); // l é o vetor unitário que aponta para a fonte de luz
+        float diffuseAttenuationFactor = max(dot(l, floorNormal), 0.0); // Fator de atenuação da luz. Se for 0, a luz não incide na superfície.
+        vec3 diffuseLighting = floorDiffuseReflection * lightSourceIntensity * diffuseAttenuationFactor; // Idif = Kd * I * (l . n)
+
+        // Iluminação especular do chão
+        vec3 r = 2.0 * (dot(l, floorNormal)) * floorNormal - l; // r é o vetor de reflexão da luz
+        vec3 v = normalize(-ray); // v é o vetor unitário que aponta para a câmera
+        float specularAttenuationFactor = pow(max(dot(r, v), 0.0), floorShininess); // Fator de atenuação da luz especular = (r . v)^α
+        vec3 specularLighting = floorSpecularReflection * lightSourceIntensity * specularAttenuationFactor; // Ispec = Ks * I * (r . v)^α
+
+        // Cor final
+        vec3 seenColor = ambientLighting + diffuseLighting + specularLighting; // Ieye = Iamb + Idif + Ispec
+        gl_FragColor = vec4(seenColor, 1.0);
+
+        return;
     }
+
+    // Se não houver interseção com a esfera e nem com o chão, então a cor de fundo será exibida.
+    // Ou seja, o raio intercepta o plano de fundo.
+    // Interseção
+    float t = dot(backgroundNormal, backgroundPosition - origin) / dot(backgroundNormal, ray);
+    vec3 intersectionPoint = origin + t * ray; // p(t) = p0 + t * dr
+
+    // Iluminação ambiente do plano de fundo
+    vec3 ambientLighting = backgroundAmbientReflection * ambientLightIntensity; // Iamb = Ka * Ia
+
+    // Iluminação difusa do plano de fundo
+    vec3 l = normalize(lightSourcePosition - intersectionPoint); // l é o vetor unitário que aponta para a fonte de luz
+    float diffuseAttenuationFactor = max(dot(l, backgroundNormal), 0.0); // Fator de atenuação da luz. Se for 0, a luz não incide na superfície.
+    vec3 diffuseLighting = backgroundDiffuseReflection * lightSourceIntensity * diffuseAttenuationFactor; // Idif = Kd * I * (l . n)
+
+    // Iluminação especular do plano de fundo
+    vec3 r = 2.0 * (dot(l, backgroundNormal)) * backgroundNormal - l; // r é o vetor de reflexão da luz
+    vec3 v = normalize(-ray); // v é o vetor unitário que aponta para a câmera
+    float specularAttenuationFactor = pow(max(dot(r, v), 0.0), backgroundShininess); // Fator de atenuação da luz especular = (r . v)^α
+    vec3 specularLighting = backgroundSpecularReflection * lightSourceIntensity * specularAttenuationFactor; // Ispec = Ks * I * (r . v)^α
+
+    // Cor final
+    vec3 seenColor = ambientLighting + diffuseLighting + specularLighting; // Ieye = Iamb + Idif + Ispec
+    gl_FragColor = vec4(seenColor, 1.0);
 }
