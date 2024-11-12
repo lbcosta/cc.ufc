@@ -15,9 +15,6 @@ uniform float dJanela; // metros
 uniform float rEsfera; // metros
 uniform vec3 centroEsfera;
 
-// cores
-uniform vec3 bgColor;
-
 // iluminação
 uniform vec3 lightSourceIntensity;
 uniform vec3 lightSourcePosition;

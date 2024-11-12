@@ -131,11 +131,6 @@ class Renderer {
         this.#gl.uniform1f(this.#gl.getUniformLocation(this.#program, "canvasHeight"), this.#canvasHeight)
     }
 
-    clear(color) {
-        this.#gl.clearColor(color.r, color.g, color.b, 1)
-        this.#gl.clear(this.#gl.COLOR_BUFFER_BIT)
-    }
-
     render() {
         this.#gl.drawArrays(this.#gl.TRIANGLES, 0, this.#numVertices)
     }
