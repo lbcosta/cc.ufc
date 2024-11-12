@@ -4,142 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esfera com RayCasting</title>
-
     <style>
-        /* Centraliza conteúdo: */ body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        /* Centraliza conteúdo: */ body { display: flex;flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         /* Define borda para o Canvas: */ canvas { border: 1px solid black; }
     </style>
 </head>
 <body>
-    <!-- wJanela = 4m, hJanela = 3m -->
-    <canvas id="canvas" width="800" height="600"></canvas>
+    <canvas id="canvas"></canvas>
+    <p>Use as setas do teclado para mover a esfera.</p>
+    <p>Use as teclas W, A, S, D para mover a fonte de luz.</p>
 </body>
-
-<script src="lib.js"></script>
-
-<script id="vertex-shader-2d" type="x-shader/x-vertex">
-    attribute vec4 a_position;
-
-    void main() {
-        gl_Position = a_position;
-    }
-</script>
-   
-<script id="fragment-shader-2d" type="x-shader/x-fragment">
-    precision mediump float;
-
-    // tela
-    uniform float canvasWidth; // pixels
-    uniform float canvasHeight; // pixels
-    uniform float nCol; // número de colunas
-    uniform float nLin; // número de linhas
-
-    // camera
-    uniform float wJanela; // metros
-    uniform float hJanela; // metros
-    uniform float dJanela; // metros
-
-    // esfera
-    uniform float rEsfera; // metros
-    uniform vec3 centroEsfera;
-
-    // cores
-    uniform vec3 esfColor;
-    uniform vec3 bgColor;
-
-    void main() {
-        // camera
-        vec3 p0 = vec3(0.0, 0.0, 0.0);
-
-        // X do raio emitido
-        float deltaX = wJanela / nCol;
-        float col = floor(gl_FragCoord.x * (nCol / canvasWidth));
-        float x = (-wJanela / 2.0) + (deltaX / 2.0) + col * deltaX;
-
-        // Y do raio emitido
-        float deltaY = hJanela / nLin;
-        float lin = floor(gl_FragCoord.y * (nLin / canvasHeight));
-        float y = (hJanela / 2.0) - (deltaY / 2.0) - lin * deltaY;
-
-        // Z do raio emitido
-        float z = -dJanela;
-
-        // Raio emitido
-        vec3 dr = vec3(x, y, z);
-        dr = normalize(dr);
-
-        // Raio retornado
-        vec3 v = p0 - centroEsfera;
-
-        // Coeficientes da equação do 2º grau
-        float a = dot(dr, dr);
-        float b = 2.0 * dot(v, dr);
-        float c = dot(v, v) - rEsfera * rEsfera;
-
-        // Delta da equação do 2º grau
-        float delta = b * b - 4.0 * a * c;
-
-        // Se delta >= 0, então existem pontos que satisfazem a equação do 2º grau, ou seja, o raio intercepta a esfera.
-        if (delta >= 0.0) {
-            // Interseção
-            gl_FragColor = vec4(esfColor, 1.0);
-        } else {
-            // Sem interseção
-            gl_FragColor = vec4(bgColor, 1.0);
-        }
-    }
-</script>
-
+<script src="js/renderer.js"></script>
 <script>
-    const config = {
-        // resolução de 4000x3000 quadrados
-            nCol: 4000, // número de colunas do quadro 
-            nLin: 3000, // número de linhas do quadro
-        // câmera
-            wJanela: 4, // metros
-            hJanela: 3, // metros
-            dJanela: 5, // metros
-        // esfera
-            rEsfera: 1.5, // metros
-            centroEsfera: new Point(0, 0, -8),
-        // cores
-            esfColor: new Color(1.0, 0.0, 0.0),   // vermelho  
-            bgColor: new Color(0.39, 0.39, 0.39), // cinza
+    const windowDepth = 30 // centímetros
+    let sphereCenterPosition = [0, 0, -100] // centímetros
+
+
+    const params = {
+        // Tela:
+            canvasWidth: 500, // pixels
+            canvasHeight: 500, // pixels
+            nCol: 500, // número de colunas
+            nRow: 500, // número de linhas
+        // Esfera:
+            sphereCenterPosition,
+            sphereRadius: 40, // centímetros
+            sphereColor: [1.0, 0, 0], // vermelho
+        // Janela:
+            windowWidth: 60, // centímetros
+            windowHeight: 60, // centímetros
+            windowDepth, // centímetros
+            windowPosition: [0, 0, -windowDepth], // centímetros
+        // Origem do raio:
+            rayOrigin: [0, 0, 0], // centímetros
+        // Cores:
+            backgroundColor: [0.39, 0.39, 0.39], // cinza
     }
 
-    renderer = new Renderer();
-
-    vertices = [
-        // dois triângulos formam um retângulo
-        // t1: x,  y
-              -1, -1,
-               1, -1,
-              -1,  1,
-        // t2: x,  y
-              -1,  1,
-               1, -1,
-               1,  1,
+    const vertices = [
+        // Dois triângulos
+        // x,  y
+          -1, -1,
+           1, -1,
+          -1,  1,
+          -1,  1,
+           1, -1,
+           1,  1,
     ]
-    
-    renderer.setPositionBuffer(vertices)
 
-    renderer.setParams({
-        // tela
-        "nCol": [1, config.nCol],
-        "nLin": [1, config.nLin],
-        // camera
-        "wJanela": [1, config.wJanela],
-        "hJanela": [1, config.hJanela],
-        "dJanela": [1, config.dJanela],
-        // esfera
-        "rEsfera": [1, config.rEsfera],
-        "centroEsfera": [3, config.centroEsfera.toArray()],
-        // cores
-        "esfColor": [3, config.esfColor.toArray()],
-        "bgColor": [3, config.bgColor.toArray()],
+    var renderer = new Renderer(params.canvasWidth, params.canvasHeight)
+    renderer.render(vertices, params)
+</script>
+<script>
+    // Movimentação da esfera
+    document.addEventListener('keydown', (event) => {
+        const keyName = event.key;
+
+        switch (keyName) {
+            case 'ArrowUp':
+                sphereCenterPosition[2] -= 10
+                break
+            case 'ArrowDown':
+                sphereCenterPosition[2] += 10
+                break
+            case 'ArrowLeft':
+                sphereCenterPosition[0] -= 10
+                break
+            case 'ArrowRight':
+                sphereCenterPosition[0] += 10
+                break
+            default:
+                return
+        }
+
+        renderer.render(vertices, params)
     })
-
-    renderer.clear(config.bgColor)
-    renderer.render()
 </script>
 </html>
