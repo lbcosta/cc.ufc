@@ -1,86 +1,95 @@
 precision mediump float;
 
-// tela
-uniform float canvasWidth; // pixels
-uniform float canvasHeight; // pixels
-uniform float nCol; // número de colunas
-uniform float nLin; // número de linhas
+// janela
+uniform float windowWidth;
+uniform float windowHeight;
+uniform vec3 windowPosition;
 
-// camera
-uniform float wJanela; // metros
-uniform float hJanela; // metros
-uniform float dJanela; // metros
+// tela
+uniform float canvasWidth;
+uniform float canvasHeight;
+uniform float nCol;
+uniform float nRow;
+
+// camera (origem do raio)
+uniform vec3 rayOrigin;
 
 // esfera
-uniform float rEsfera; // metros
-uniform vec3 centroEsfera;
+uniform float sphereRadius;
+uniform vec3 sphereCenterPosition;
+uniform vec3 sphereDiffuseReflection;
+uniform vec3 sphereSpecularReflection;
+uniform float sphereShininess;
 
-// cores
-uniform vec3 esfColor;
-uniform vec3 bgColor;
+// cor
+uniform vec3 backgroundColor;
 
-// iluminação
-uniform vec3 lightIntensity;
-uniform vec3 lightPosition;
-uniform vec3 diffuseReflection;
-uniform vec3 specularReflection;
-uniform float materialShininess;
+// luz
+uniform vec3 lightSourcePosition;
+uniform vec3 lightSourceIntensity;
 
 void main() {
-    // camera
-    vec3 origin = vec3(0.0, 0.0, 0.0);
-
     // X do raio emitido
-    float deltaX = wJanela / nCol;
+    float deltaX = windowWidth / nCol;
     float col = floor(gl_FragCoord.x * (nCol / canvasWidth));
-    float x = (-wJanela / 2.0) + (deltaX / 2.0) + col * deltaX;
+    float x = (-windowWidth / 2.0) + (deltaX / 2.0) + col * deltaX;
 
     // Y do raio emitido
-    float deltaY = hJanela / nLin;
-    float lin = floor(gl_FragCoord.y * (nLin / canvasHeight));
-    float y = (hJanela / 2.0) - (deltaY / 2.0) - lin * deltaY;
+    float deltaY = windowHeight / nRow;
+    float lin = floor(gl_FragCoord.y * (nRow / canvasHeight));
+    float y = (windowHeight / 2.0) - (deltaY / 2.0) - lin * deltaY;
 
     // Z do raio emitido
-    float z = -dJanela;
+    float z = windowPosition.z;
 
     // Raio emitido
     vec3 ray = vec3(x, y, z);
     ray = normalize(ray);
 
     // Raio retornado
-    vec3 reflectedRay = origin - centroEsfera;
+    vec3 reflectedRay = rayOrigin - sphereCenterPosition;
 
     // Coeficientes da equação do 2º grau
     float a = dot(ray, ray);
     float b = 2.0 * dot(reflectedRay, ray);
-    float c = dot(reflectedRay, reflectedRay) - rEsfera * rEsfera;
+    float c = dot(reflectedRay, reflectedRay) - pow(sphereRadius, 2.0);
 
     // Delta da equação do 2º grau
-    float delta = b * b - 4.0 * a * c;
+    float discriminant = b * b - 4.0 * a * c;
 
-    // Se delta >= 0, então existem pontos que satisfazem a equação do 2º grau, ou seja, o raio intercepta a esfera.
-    if (delta >= 0.0) {
-        // Interseção
-        float distance = (-b - sqrt(delta)) / (2.0 * a);
-        vec3 intersectionPoint = origin + distance * ray; // p(t) = p0 + t * dr
-        vec3 n = normalize(intersectionPoint - centroEsfera);
-
-        // Iluminação difusa
-        vec3 l = normalize(lightPosition - intersectionPoint); // l é o vetor unitário que aponta para a fonte de luz
-        float diffuseAttenuationFactor = max(dot(l, n), 0.0); // Fator de atenuação da luz. Se for 0, a luz não incide na superfície.
-        vec3 diffuseLighting = diffuseReflection * lightIntensity * diffuseAttenuationFactor; // Idif = Kd * I * (l . n)
-
-        // Iluminação especular
-        vec3 r = 2.0 * (dot(l, n)) * n - l; // r é o vetor de reflexão da luz
-        vec3 v = normalize(-ray); // v é o vetor unitário que aponta para a câmera
-        float specularAttenuationFactor = pow(max(dot(r, v), 0.0), materialShininess); // Fator de atenuação da luz especular = (r . v)^α
-        vec3 specularLighting = specularReflection * lightIntensity * specularAttenuationFactor; // Ispec = Ks * I * (r . v)^α
-
-        // Cor final
-        vec3 seenColor = diffuseLighting + specularLighting; // Ieye = Idif + Ispec
-        gl_FragColor = vec4(seenColor, 1.0);
-    } else {
-        // Sem interseção
-        gl_FragColor = vec4(bgColor, 1.0);
+    if (discriminant < 0.0) {
+        // Não há interseção
+        gl_FragColor = vec4(backgroundColor, 1.0);
+        return;
     }
+    
+    // Há interseção:
+        // Calcula o ponto de interseção
+            float t = (-b - sqrt(discriminant)) / (2.0 * a);
+            vec3 intersectionPoint = rayOrigin + t * ray;
+
+        // Calcula vetores necessários:
+            // Vetor normal à superfície da esfera no ponto de interseção (n)
+            vec3 normal = normalize(intersectionPoint - sphereCenterPosition);
+
+            // Vetor que aponta para a fonte de luz (l)
+            vec3 lightDirection = normalize(lightSourcePosition - intersectionPoint);
+
+            // Vetor que aponta para o observador (v)
+            vec3 viewDirection = normalize(rayOrigin - intersectionPoint);
+
+            // Vetor que representa a reflexão da luz (r = 2 * (l . n) * n - l)
+            vec3 reflectionDirection = reflect(-lightDirection, normal);
+
+        // Calcula componentes da cor:
+            // Intensidade da luz difusa (Id = Kd * I * (l . n))
+            vec3 diffuseIntensity = lightSourceIntensity * sphereDiffuseReflection * max(dot(lightDirection, normal), 0.0);
+
+            // Intensidade da luz especular (Ie = Ks * I * (v . r)^m)
+            vec3 specularIntensity = lightSourceIntensity * sphereSpecularReflection * pow(max(dot(reflectionDirection, viewDirection), 0.0), sphereShininess);
+
+        // Cor final Ieye = Id + Ie
+        vec3 finalColor = diffuseIntensity + specularIntensity;
+
+        gl_FragColor = vec4(finalColor, 1.0);
 }
