@@ -4,102 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esfera com RayCasting</title>
-    <style>
-        /* Centraliza conteúdo: */ body { display: flex;flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        /* Define borda para o Canvas: */ canvas { border: 1px solid black; }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <div>
+        <p>Posição da Esfera:</p>
+        <div class="container">
+            <h2>X</h2>
+            <div class="input-wrapper">
+                <p>Esquerda</p>
+                <input type="range" id="sphereX" name="sphereX" min="-300" max="300" step="1" />
+                <p>Direita</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Y</h2>
+            <div class="input-wrapper">
+                <p>Baixo</p>
+                <input type="range" id="sphereY" name="sphereY" min="-300" max="300" step="1" />
+                <p>Cima</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Z</h2>
+            <div class="input-wrapper">
+                <p>Distante</p>
+                <input type="range" id="sphereZ" name="sphereZ" min="-300" max="300" step="1" />
+                <p>Próximo</p>
+            </div>
+        </div>
+    </div>
     <canvas id="canvas"></canvas>
-    <p>Use as setas do teclado para mover a esfera.</p>
-    <p>Use as teclas W, A, S, D para mover a fonte de luz.</p>
+    <div>
+        <p>Posição da Fonte de Luz:</p>
+        <div class="container">
+            <h2>X</h2>
+            <div class="input-wrapper">
+                <p>Esquerda</p>
+                <input type="range" id="lightX" name="lightX" min="-300" max="300" step="1" />
+                <p>Direita</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Y</h2>
+            <div class="input-wrapper">
+                <p>Baixo</p>
+                <input type="range" id="lightY" name="lightY" min="-300" max="300" step="1" />
+                <p>Cima</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Z</h2>
+            <div class="input-wrapper">
+                <p>Distante</p>
+                <input type="range" id="lightZ" name="lightZ" min="-300" max="300" step="1" />
+                <p>Próximo</p>
+            </div>
+        </div>
+    </div>
 </body>
 <script src="js/renderer.js"></script>
-<script>
-    let sphereCenterPosition = [0, 0, -100] // centímetros
-    let lightSourcePosition = [0, 50, 0] // centímetros
-    const windowDepth = 30 // centímetros
-    const params = {
-        // Tela:
-            canvasWidth: 500, // pixels
-            canvasHeight: 500, // pixels
-            nCol: 500, // número de colunas
-            nRow: 500, // número de linhas
-        // Esfera:
-            sphereCenterPosition,
-            sphereRadius: 40, // centímetros
-            sphereDiffuseReflection: [1.0, 0.0, 0.0], // cor = vermelho
-            sphereSpecularReflection: [1.0, 1.0, 1.0], // cor = branco
-            sphereShininess: 20.0, // brilho
-        // Janela:
-            windowWidth: 60, // centímetros
-            windowHeight: 60, // centímetros
-            windowDepth, // centímetros
-            windowPosition: [0, 0, -windowDepth], // centímetros
-        // Origem do raio:
-            rayOrigin: [0, 0, 0], // centímetros
-        // Cores:
-            backgroundColor: [0.39, 0.39, 0.39], // cinza
-        // Luminosidade:
-            lightSourcePosition,
-            lightSourceIntensity: [0.7, 0.7, 0.7], // cor = branco
-    }
-
-    const vertices = [
-        // Dois triângulos
-        // x,  y
-          -1, -1,
-           1, -1,
-          -1,  1,
-          -1,  1,
-           1, -1,
-           1,  1,
-    ]
-
-    var renderer = new Renderer(params.canvasWidth, params.canvasHeight)
-    renderer.render(vertices, params)
-</script>
-<script>
-    // Movimentação da esfera
-    document.addEventListener('keydown', (event) => {
-        const keyName = event.key;
-        const [X, Y, Z] = [0, 1, 2]
-
-        switch (keyName) {
-            case 'ArrowUp':
-                // Move a esfera para longe
-                sphereCenterPosition[Z] -= 10
-                break
-            case 'ArrowDown':
-                // Move a esfera para perto
-                sphereCenterPosition[Z] += 10
-                break
-            case 'ArrowLeft':
-                // Move a esfera para a esquerda
-                sphereCenterPosition[X] -= 10
-                break
-            case 'ArrowRight':
-                // Move a esfera para a direita
-                sphereCenterPosition[X] += 10
-                break
-            case 'w':
-                // Move a fonte de luz para longe
-                lightSourcePosition[Z] -= 10
-                break
-            case 's':
-                lightSourcePosition[Z] += 10
-                break
-            case 'a':
-                lightSourcePosition[X] -= 10
-                break
-            case 'd':
-                lightSourcePosition[X] += 10
-                break
-            default:
-                return
-        }
-
-        renderer.render(vertices, params)
-    })
-</script>
+<script src="js/index.js"></script>
 </html>
