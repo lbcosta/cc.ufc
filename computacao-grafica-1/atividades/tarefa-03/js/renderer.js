@@ -1,16 +1,18 @@
 class Renderer {
     #gl
     #program
-    #numVertices
     #canvasWidth
     #canvasHeight
 
-    constructor() {
+    constructor(canvasWidth, canvasHeight) {
         const canvas = document.getElementById("canvas")
         if (!canvas) {
             console.error("Canvas não encontrado.")
             return
         }
+
+        canvas.width = canvasWidth
+        canvas.height = canvasHeight
 
         this.#canvasWidth = canvas.width
         this.#canvasHeight = canvas.height
@@ -94,15 +96,13 @@ class Renderer {
         return program
     }
 
-    setPositionBuffer(positions) {
+    setPositionBuffer(vertices) {
         const positionAttributeLocation = this.#gl.getAttribLocation(this.#program, "a_position")
         const positionBuffer = this.#gl.createBuffer()
         this.#gl.bindBuffer(this.#gl.ARRAY_BUFFER, positionBuffer)
-        this.#gl.bufferData(this.#gl.ARRAY_BUFFER, new Float32Array(positions), this.#gl.STATIC_DRAW)
+        this.#gl.bufferData(this.#gl.ARRAY_BUFFER, new Float32Array(vertices), this.#gl.STATIC_DRAW)
         this.#gl.enableVertexAttribArray(positionAttributeLocation)
         this.#gl.vertexAttribPointer(positionAttributeLocation, 2, this.#gl.FLOAT, false, 0, 0)
-        
-        this.#numVertices = positions.length
     }
 
     setParams(params) {
@@ -131,7 +131,9 @@ class Renderer {
         this.#gl.uniform1f(this.#gl.getUniformLocation(this.#program, "canvasHeight"), this.#canvasHeight)
     }
 
-    render() {
-        this.#gl.drawArrays(this.#gl.TRIANGLES, 0, this.#numVertices)
+    render(vertices, params) {
+        this.setPositionBuffer(vertices)
+        this.setParams(params)
+        this.#gl.drawArrays(this.#gl.TRIANGLES, 0, vertices.length)
     }
 }
