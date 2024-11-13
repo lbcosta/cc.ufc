@@ -37,7 +37,7 @@ void main() {
     // Y do raio emitido
     float deltaY = windowHeight / nRow;
     float lin = floor(gl_FragCoord.y * (nRow / canvasHeight));
-    float y = (windowHeight / 2.0) - (deltaY / 2.0) - lin * deltaY;
+    float y = (-windowHeight / 2.0) + (deltaY / 2.0) + lin * deltaY; // invertido???
 
     // Z do raio emitido
     float z = windowPosition.z;
