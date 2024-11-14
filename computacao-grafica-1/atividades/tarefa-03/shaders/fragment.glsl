@@ -46,12 +46,28 @@ uniform vec3 backPlaneSpecularReflection;
 uniform vec3 backPlaneAmbientReflection;
 uniform float backPlaneShininess;
 
-float getSphereIntersectionMoment(vec3 origin, vec3 ray, vec3 center, float radius) {
-    vec3 oc = origin - center;
+struct Object {
+    int id;
+    vec3 position;
+    vec3 normal;
+    float radius;
+    vec3 diffuseReflection;
+    vec3 specularReflection;
+    vec3 ambientReflection;
+    float shininess;
+};
+
+// constantes com os ids:
+const int SPHERE = 0;
+const int FLOOR = 1;
+const int BACK_PLANE = 2;
+
+float getSphereIntersectionMoment(vec3 origin, vec3 ray, Object sphere) {
+    vec3 oc = origin - sphere.position;
     
     float a = dot(ray, ray);
     float b = 2.0 * dot(oc, ray);
-    float c = dot(oc, oc) - pow(radius, 2.0);
+    float c = dot(oc, oc) - pow(sphere.radius, 2.0);
 
     float discriminant = b * b - 4.0 * a * c;
 
@@ -68,18 +84,19 @@ vec3 getSphereIntersection(vec3 origin, vec3 ray, float t) {
         return vec3(0.0);
     }
 
-    return rayOrigin + t * ray;
+    return origin + t * ray;
 }
 
-float getPlaneIntersectionMoment(vec3 origin, vec3 ray, vec3 planePosition, vec3 planeNormal) {
-    float rayNormalProjection = dot(ray, planeNormal);
-    if (rayNormalProjection <= 0.0) {
-            // O raio é paralelo ao plano
-            return 0.0;
-    }
+float getPlaneIntersectionMoment(vec3 origin, vec3 ray, Object plane) {
+    float rayNormalProjection = dot(ray, plane.normal);
+    // por que não funciona?
+    // if (rayNormalProjection <= 0.0) {
+    //         // O raio é paralelo ao plano
+    //         return 0.0;
+    // }
 
-    vec3 rf = planePosition - origin; // Vetor da origem do raio até o ponto do plano
-    float t = dot(rf, planeNormal) / rayNormalProjection;
+    vec3 rf = plane.position - origin; // Vetor da origem do raio até o ponto do plano
+    float t = dot(rf, plane.normal) / rayNormalProjection;
 
     return t;
 }
@@ -93,14 +110,14 @@ vec3 getPlaneIntersection(vec3 origin, vec3 ray, float t) {
     return origin + t * ray;
 }
 
-vec4 getColor(vec3 origin, vec3 intersectionPoint, vec3 normal, vec3 diffuseReflection, vec3 specularReflection, vec3 ambientReflection, float shininess) {
+vec4 getColor(vec3 origin, vec3 intersectionPoint, vec3 normal, Object object) {
     vec3 lightDirection = normalize(lightSourcePosition - intersectionPoint);
     vec3 viewDirection = normalize(origin - intersectionPoint);
     vec3 reflectionDirection = reflect(-lightDirection, normal);
 
-    vec3 ambientIntensity = ambientLightIntensity * ambientReflection;
-    vec3 diffuseIntensity = lightSourceIntensity * diffuseReflection * max(dot(lightDirection, normal), 0.0);
-    vec3 specularIntensity = lightSourceIntensity * specularReflection * pow(max(dot(reflectionDirection, viewDirection), 0.0), shininess);
+    vec3 ambientIntensity = ambientLightIntensity * object.ambientReflection;
+    vec3 diffuseIntensity = lightSourceIntensity * object.diffuseReflection * max(dot(lightDirection, normal), 0.0);
+    vec3 specularIntensity = lightSourceIntensity * object.specularReflection * pow(max(dot(reflectionDirection, viewDirection), 0.0), object.shininess);
 
     vec3 color = ambientIntensity + diffuseIntensity + specularIntensity;
     
@@ -108,44 +125,65 @@ vec4 getColor(vec3 origin, vec3 intersectionPoint, vec3 normal, vec3 diffuseRefl
 }
 
 void main() {
-    // Calcula a direção do raio emitido:
-    // X do raio emitido
     float deltaX = windowWidth / nCol;
     float col = floor(gl_FragCoord.x * (nCol / canvasWidth));
     float x = (-windowWidth / 2.0) + (deltaX / 2.0) + col * deltaX;
 
-    // Y do raio emitido
     float deltaY = windowHeight / nRow;
     float lin = floor(gl_FragCoord.y * (nRow / canvasHeight));
-    float y = (-windowHeight / 2.0) + (deltaY / 2.0) + lin * deltaY; // invertido???
+    float y = (-windowHeight / 2.0) + (deltaY / 2.0) + lin * deltaY; // invertido
 
-    // Z do raio emitido
     float z = windowPosition.z;
 
-    // Raio emitido
     vec3 ray = vec3(x, y, z);
     ray = normalize(ray);
 
-    // Calcula a interseção com a esfera:
-    float tSphere = getSphereIntersectionMoment(rayOrigin, ray, sphereCenterPosition, sphereRadius);
-    vec3 sphereIntersectionPoint = getSphereIntersection(rayOrigin, ray, tSphere);
+    Object sphere = Object(SPHERE, sphereCenterPosition, vec3(0.0), sphereRadius, sphereDiffuseReflection, sphereSpecularReflection, sphereAmbientReflection, sphereShininess);
+    Object floor = Object(FLOOR, floorPosition, floorNormal, 0.0, floorDiffuseReflection, floorSpecularReflection, floorAmbientReflection, floorShininess);
+    Object backPlane = Object(BACK_PLANE, backPlanePosition, backPlaneNormal, 0.0, backPlaneDiffuseReflection, backPlaneSpecularReflection, backPlaneAmbientReflection, backPlaneShininess);
 
-    // Calcula a interseção com o chão:
-    float tFloor = getPlaneIntersectionMoment(rayOrigin, ray, floorPosition, floorNormal);
-    vec3 floorIntersectionPoint = getPlaneIntersection(rayOrigin, ray, tFloor);
+    Object objects[3];
+    objects[0] = sphere;
+    objects[1] = floor;
+    objects[2] = backPlane;
 
-    // Calcula a interseção com o plano de fundo:
-    float tBackPlane = getPlaneIntersectionMoment(rayOrigin, ray, backPlanePosition, backPlaneNormal);
-    vec3 backPlaneIntersectionPoint = getPlaneIntersection(rayOrigin, ray, tBackPlane);
+    float t = 0.0;
+    vec3 intersectionPoint = vec3(0.0);
+    vec3 normal = vec3(0.0);
+    Object object = Object(-1, vec3(0.0), vec3(0.0), 0.0, vec3(0.0), vec3(0.0), vec3(0.0), 0.0);
 
-    bool isRayIntersectingSphere = sphereIntersectionPoint != vec3(0.0);
-    bool isRayIntersectingFloor = floorIntersectionPoint != vec3(0.0);
-    bool isRayIntersectingBackPlane = backPlaneIntersectionPoint != vec3(0.0);
+    for (int i = 0; i < 3; i++) {
+        Object currentObject = objects[i];
+        float currentT = 0.0;
+        if (currentObject.id == SPHERE) {
+            currentT = getSphereIntersectionMoment(rayOrigin, ray, currentObject);
+        } else {
+            currentT = getPlaneIntersectionMoment(rayOrigin, ray, currentObject);
+        }
 
-    if (isRayIntersectingSphere) {
-        gl_FragColor = getColor(rayOrigin, sphereIntersectionPoint, normalize(sphereIntersectionPoint - sphereCenterPosition), sphereDiffuseReflection, sphereSpecularReflection, sphereAmbientReflection, sphereShininess);
-        return;
-    } 
+        if (currentT > 0.0 && (t == 0.0 || currentT < t)) {
+            t = currentT;
+            object = currentObject;
+        }
+    }
 
-    gl_FragColor = vec4(backgroundColor, 1.0);
+    if (object.id == SPHERE) {
+        intersectionPoint = getSphereIntersection(rayOrigin, ray, t);
+        normal = normalize(intersectionPoint - object.position);
+    } else {
+        intersectionPoint = getPlaneIntersection(rayOrigin, ray, t);
+        normal = object.normal;
+
+        vec3 lightDirection = normalize(lightSourcePosition - intersectionPoint);
+        float lightT = getSphereIntersectionMoment(intersectionPoint, lightDirection, sphere);
+
+        if (lightT != 0.0) { // todo: trocar para: se discriminante for negativo, não há interseção
+            object.diffuseReflection = vec3(0.0);
+            object.specularReflection = vec3(0.0);
+        }
+    }
+
+    vec4 color = getColor(rayOrigin, intersectionPoint, normal, object);
+
+    gl_FragColor = color;
 }

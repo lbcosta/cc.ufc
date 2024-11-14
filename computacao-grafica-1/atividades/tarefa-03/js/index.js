@@ -49,12 +49,12 @@ const params = {
 const vertices = [
     // Dois triângulos
     // x,  y
-      -1, -1,
-       1, -1,
       -1,  1,
-      -1,  1,
-       1, -1,
        1,  1,
+       1, -1,
+      -1, -1,
+      -1,  1,
+       1, -1,
 ]
 
 var renderer = new Renderer(params.canvasWidth, params.canvasHeight)
