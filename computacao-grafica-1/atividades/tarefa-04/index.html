@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esfera com RayCasting</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div>
+        <p>Posição da Esfera:</p>
+        <div class="container">
+            <h2>X</h2>
+            <div class="input-wrapper">
+                <p>Esquerda</p>
+                <input type="range" id="sphereX" name="sphereX" min="-300" max="300" step="1" />
+                <p>Direita</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Y</h2>
+            <div class="input-wrapper">
+                <p>Baixo</p>
+                <input type="range" id="sphereY" name="sphereY" min="-300" max="300" step="1" />
+                <p>Cima</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Z</h2>
+            <div class="input-wrapper">
+                <p>Distante</p>
+                <input type="range" id="sphereZ" name="sphereZ" min="-300" max="300" step="1" />
+                <p>Próximo</p>
+            </div>
+        </div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div>
+        <p>Posição da Fonte de Luz:</p>
+        <div class="container">
+            <h2>X</h2>
+            <div class="input-wrapper">
+                <p>Esquerda</p>
+                <input type="range" id="lightX" name="lightX" min="-300" max="300" step="1" />
+                <p>Direita</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Y</h2>
+            <div class="input-wrapper">
+                <p>Baixo</p>
+                <input type="range" id="lightY" name="lightY" min="-300" max="300" step="1" />
+                <p>Cima</p>
+            </div>
+        </div>
+        <div class="container">
+            <h2>Z</h2>
+            <div class="input-wrapper">
+                <p>Distante</p>
+                <input type="range" id="lightZ" name="lightZ" min="-300" max="300" step="1" />
+                <p>Próximo</p>
+            </div>
+        </div>
+    </div>
+</body>
+<script src="js/renderer.js"></script>
+<script src="js/index.js"></script>
+</html>
