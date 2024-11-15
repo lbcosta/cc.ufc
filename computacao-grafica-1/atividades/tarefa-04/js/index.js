@@ -24,8 +24,6 @@ const params = {
         windowPosition: [0, 0, -windowDepth], // centímetros
     // Origem do raio:
         rayOrigin: [0, 0, 0], // centímetros
-    // Cores:
-        backgroundColor: [0.39, 0.39, 0.39], // cinza
     // Fonte de Luz:
         lightSourcePosition,
         lightSourceIntensity: [0.7, 0.7, 0.7], // cor = branco

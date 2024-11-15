@@ -22,9 +22,6 @@ uniform vec3 sphereSpecularReflection;
 uniform vec3 sphereAmbientReflection;
 uniform float sphereShininess;
 
-// cor
-uniform vec3 backgroundColor;
-
 // fonte de luz
 uniform vec3 lightSourcePosition;
 uniform vec3 lightSourceIntensity;
@@ -62,7 +59,17 @@ const int SPHERE = 0;
 const int FLOOR = 1;
 const int BACK_PLANE = 2;
 
-float getSphereIntersectionMoment(vec3 origin, vec3 ray, Object sphere) {
+float get_discriminant_from_ray_intersection_with_sphere(vec3 origin, vec3 ray, Object sphere) {
+    vec3 oc = origin - sphere.position;
+    
+    float a = dot(ray, ray);
+    float b = 2.0 * dot(oc, ray);
+    float c = dot(oc, oc) - pow(sphere.radius, 2.0);
+
+    return b * b - 4.0 * a * c;
+}
+
+float get_T_from_ray_intersection_with_sphere(vec3 origin, vec3 ray, Object sphere) {
     vec3 oc = origin - sphere.position;
     
     float a = dot(ray, ray);
@@ -71,23 +78,14 @@ float getSphereIntersectionMoment(vec3 origin, vec3 ray, Object sphere) {
 
     float discriminant = b * b - 4.0 * a * c;
 
-    if (discriminant < 0.0) {
-        return 0.0;
-    }
-
-    float t = (-b - sqrt(discriminant)) / (2.0 * a);
-    return t;
+    return (-b - sqrt(discriminant)) / (2.0 * a);
 }
 
-vec3 getSphereIntersection(vec3 origin, vec3 ray, float t) {
-    if (t == 0.0) {
-        return vec3(0.0);
-    }
-
+vec3 get_ray_intersection_point(vec3 origin, vec3 ray, float t) {
     return origin + t * ray;
 }
 
-float getPlaneIntersectionMoment(vec3 origin, vec3 ray, Object plane) {
+float get_T_from_ray_intersection_with_plane(vec3 origin, vec3 ray, Object plane) {
     float rayNormalProjection = dot(ray, plane.normal);
     // por que não funciona?
     // if (rayNormalProjection <= 0.0) {
@@ -99,15 +97,6 @@ float getPlaneIntersectionMoment(vec3 origin, vec3 ray, Object plane) {
     float t = dot(rf, plane.normal) / rayNormalProjection;
 
     return t;
-}
-
-vec3 getPlaneIntersection(vec3 origin, vec3 ray, float t) {
-    if (t <= 0.0) { 
-        // O plano está atrás da origem do raio
-        return vec3(0.0);
-    }
-
-    return origin + t * ray;
 }
 
 vec4 getColor(vec3 origin, vec3 intersectionPoint, vec3 normal, Object object) {
@@ -155,10 +144,11 @@ void main() {
     for (int i = 0; i < 3; i++) {
         Object currentObject = objects[i];
         float currentT = 0.0;
+
         if (currentObject.id == SPHERE) {
-            currentT = getSphereIntersectionMoment(rayOrigin, ray, currentObject);
+            currentT = get_T_from_ray_intersection_with_sphere(rayOrigin, ray, currentObject);
         } else {
-            currentT = getPlaneIntersectionMoment(rayOrigin, ray, currentObject);
+            currentT = get_T_from_ray_intersection_with_plane(rayOrigin, ray, currentObject);
         }
 
         if (currentT > 0.0 && (t == 0.0 || currentT < t)) {
@@ -167,21 +157,22 @@ void main() {
         }
     }
 
+    
+    intersectionPoint = get_ray_intersection_point(rayOrigin, ray, t);
+
     if (object.id == SPHERE) {
-        intersectionPoint = getSphereIntersection(rayOrigin, ray, t);
         normal = normalize(intersectionPoint - object.position);
-    } else {
-        intersectionPoint = getPlaneIntersection(rayOrigin, ray, t);
+    } else if (object.id == FLOOR || object.id == BACK_PLANE) {
         normal = object.normal;
 
         vec3 lightDirection = normalize(lightSourcePosition - intersectionPoint);
-        float lightT = getSphereIntersectionMoment(intersectionPoint, lightDirection, sphere);
+        float lightDiscriminant = get_discriminant_from_ray_intersection_with_sphere(intersectionPoint, lightDirection, sphere);
 
-        if (lightT != 0.0) { // todo: trocar para: se discriminante for negativo, não há interseção
+        if (lightDiscriminant > 0.0) {
             object.diffuseReflection = vec3(0.0);
             object.specularReflection = vec3(0.0);
         }
-    }
+    } else {}
 
     vec4 color = getColor(rayOrigin, intersectionPoint, normal, object);
 
