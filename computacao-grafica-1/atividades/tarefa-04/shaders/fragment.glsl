@@ -43,6 +43,16 @@ uniform vec3 backPlaneSpecularReflection;
 uniform vec3 backPlaneAmbientReflection;
 uniform float backPlaneShininess;
 
+// cilindro
+uniform vec3 cilinderBaseCenterPosition;
+uniform float cilinderBaseRadius;
+uniform float cilinderHeight;
+uniform vec3 cilinderDirection;
+uniform vec3 cilinderDiffuseReflection;
+uniform vec3 cilinderSpecularReflection;
+uniform vec3 cilinderAmbientReflection;
+uniform float cilinderShininess;
+
 struct Object {
     int id;
     vec3 position;

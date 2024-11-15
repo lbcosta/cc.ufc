@@ -43,13 +43,14 @@ const params = {
         backPlaneAmbientReflection: [0.3, 0.3, 0.7], // cor = azul
         backPlaneShininess: 1.0, // brilho
     // Cilindro:
-        cilinderBaseCenterPosition: sphereCenterPosition, // centímetros
+        cilinderBaseCenterPosition: sphereCenterPosition.map(p => p), // centímetros
         cilinderBaseRadius: sphereRadius / 3, // centímetros
         cilinderHeight: sphereRadius * 3, // centímetros
         cilinderDirection: [-1/Math.sqrt(3), 1/Math.sqrt(3), -1/Math.sqrt(3)], // vetor direção
         cilinderDiffuseReflection: [0.2, 0.3, 0.8], // cor = azul
         cilinderSpecularReflection: [0.2, 0.3, 0.8], 
-        cilinderAmbientReflection: [0.2, 0.3, 0.8], 
+        cilinderAmbientReflection: [0.2, 0.3, 0.8],
+        cilinderShininess: 1.0,
 }
 
 const vertices = [
