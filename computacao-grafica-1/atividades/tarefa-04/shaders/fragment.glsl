@@ -366,7 +366,7 @@ void main() {
     // --- Intersection ---
     Object closestObject = Object(-1, -1, -1.0, Material(vec3(0.0), vec3(0.0), vec3(0.0), 0.0), vec3(0.0));
     for (int i = 0; i < nObjects; i++) {
-        if (objects[i].t != -1.0 && (objects[i].t < closestObject.t || closestObject.t == -1.0)) {
+        if (objects[i].t > 0.0 && (objects[i].t < closestObject.t || closestObject.t == -1.0)) {
             closestObject = objects[i];
         }
     }
@@ -377,6 +377,15 @@ void main() {
     vec3 n = closestObject.normal;
     vec3 l = normalize(light_position - p);
     vec3 r = reflect(-l, n);
+
+    // if object is a plane, check if there is an object that obstructs the light
+    // if (closestObject.id == PLANE) {
+    //     for (int i = 0; i < nObjects; i++) {
+    //         if (objects[i].id != PLANE && objects[i].t > 0.0) {
+    //             vec3 lightDirection = normalize(light_position - p);
+    //             float t;
+    //     }
+    // }
 
     // light atenuation factors:
     float fd = dot(l, n);
