@@ -27,8 +27,8 @@ uniform vec3 sphere_center; // (10,10,10)
 uniform float sphere_radius; // 5
 
 // Object 4: Cone (with no bottom plane)
-uniform vec3 cone_baseCenterPos; // (10,10,14)
-uniform vec3 cone_vertexPos; // (10,10,18)
+uniform vec3 cone_baseCenter; // (10,10,14)
+uniform vec3 cone_vertex; // (10,10,18)
 uniform float cone_baseRadius; // 3
 
 // Light (Point)
@@ -37,7 +37,6 @@ uniform vec3 light_intensity; // (1,1,1)
 
 // Camera (Observer) or Ray
 uniform vec3 ray_origin; // (-0.392305, 16, 21)
-uniform vec3 ray_point; // (10,10,5)
 
 // All objects are made by the same material
 uniform vec3 object_diffuseReflection; // (0.5,0.25,0.5)
@@ -67,8 +66,8 @@ struct Sphere {
 };
 
 struct Cone {
-    vec3 baseCenterPos;
-    vec3 vertexPos;
+    vec3 baseCenter;
+    vec3 vertex;
     float baseRadius;
 };
 
@@ -183,32 +182,118 @@ float Sphere_RayIntersection(Ray ray, Sphere sphere) {
     return t1 < t2 ? t1 : t2;
 }
 
+mat3 Cone_ProjectionMatrixQ(Cone cone) {
+    vec3 baseToVertex = cone.vertex - cone.baseCenter;
+    vec3 baseToVertexNormalized = normalize(baseToVertex);
+    mat3 baseToVertexMatrix = outerProduct(baseToVertexNormalized, baseToVertexNormalized);
+
+    return baseToVertexMatrix;
+}
+
+mat3 Cone_ProjectionMatrixM(Cone cone) {
+    mat3 identityMatrix = mat3(1.0);
+    mat3 baseToVertexMatrix = Cone_ProjectionMatrixQ(cone);
+
+    mat3 projectionMatrix = identityMatrix - baseToVertexMatrix;
+    return projectionMatrix;
+}
+
+bool Cone_ValidateIntersectionPoint(Cone cone, vec3 intersectionPoint) {
+    vec3 coneHeight = cone.vertex - cone.baseCenter;
+    vec3 baseToIntersection = intersectionPoint - cone.baseCenter;
+
+    float projection = dot(coneHeight, baseToIntersection);
+    return projection >= 0.0 && projection <= dot(coneHeight, coneHeight);
+}
+
+float Cone_RayIntersection(Ray ray, Cone cone) {
+    mat3 projectionMatrixM = Cone_ProjectionMatrixM(cone);
+    mat3 projectionMatrixQ = Cone_ProjectionMatrixQ(cone);
+    vec3 baseToRayOrigin = ray.origin - cone.baseCenter;
+
+    float coneHeight = length(cone.vertex - cone.baseCenter);
+
+    // a = (d.M.d.h^2) - (d.Q.d.r^2)
+    float a = (dot(projectionMatrixM * ray.direction, ray.direction) * pow(coneHeight, 2.0)) - (dot(projectionMatrixQ * ray.direction, ray.direction) * pow(cone.baseRadius, 2.0));
+
+    // b = (2.d.M.s.h^2) + (2.d.Q.d.H.r^2) - (2.d.Q.s.r^2)
+    float b = (2.0 * dot(projectionMatrixM * ray.direction, baseToRayOrigin) * pow(coneHeight, 2.0)) 
+    + (2.0 * dot(projectionMatrixQ * ray.direction, ray.direction) * coneHeight * pow(cone.baseRadius, 2.0)) 
+    - (2.0 * dot(projectionMatrixQ * ray.direction, baseToRayOrigin) * pow(cone.baseRadius, 2.0));
+
+    // c = (s.M.s.h^2) + (2.d.Q.s.h.r^2) - (s.Q.s.r^2) - (h^2.r^2)
+    float c = (dot(projectionMatrixM * baseToRayOrigin, baseToRayOrigin) * pow(coneHeight, 2.0))
+    + (2.0 * dot(projectionMatrixQ * baseToRayOrigin, ray.direction) * coneHeight * pow(cone.baseRadius, 2.0))
+    - (dot(projectionMatrixQ * baseToRayOrigin, baseToRayOrigin) * pow(cone.baseRadius, 2.0))
+    - (pow(coneHeight, 2.0) * pow(cone.baseRadius, 2.0));
+
+    if (a == 0.0) {
+        float t1 = -c / b;
+        vec3 intersectionPoint1 = ray.origin + t1 * ray.direction;
+        bool isValidIntersectionPoint1 = Cone_ValidateIntersectionPoint(cone, intersectionPoint1);
+
+        if (isValidIntersectionPoint1) {
+            return t1;
+        } else {
+            return -1.0;
+        }
+    }
+
+    float discriminant = b * b - 4.0 * a * c;
+
+    if (discriminant < 0.0) {
+        return -1.0;
+    }
+
+    float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
+    float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
+
+    vec3 intersectionPoint1 = ray.origin + t1 * ray.direction;
+    vec3 intersectionPoint2 = ray.origin + t2 * ray.direction;
+
+    bool isValidIntersectionPoint1 = Cone_ValidateIntersectionPoint(cone, intersectionPoint1);
+    bool isValidIntersectionPoint2 = Cone_ValidateIntersectionPoint(cone, intersectionPoint2);
+
+    if (isValidIntersectionPoint1 && isValidIntersectionPoint2) {
+        return t1 < t2 ? t1 : t2;
+    } else if (isValidIntersectionPoint1) {
+        return t1;
+    } else if (isValidIntersectionPoint2) {
+        return t2;
+    } else {
+        return -1.0;
+    }
+}
+
 void main() {
     // --- Ray ---
     Ray ray = Ray(ray_origin, CurrentPosition());
 
     // --- Plane ---
     Plane plane = Plane(plane_point, plane_normal);
-
     float tPlane = Plane_RayIntersection(ray, plane);
 
     // --- Cilinder ---
     Cilinder cilinder = Cilinder(cilinder_baseCenter, cilinder_topCenter, cilinder_baseRadius);
-
     float tCilinder = Cilinder_RayIntersectionWithSurface(ray, cilinder);
 
     // --- Sphere ---
-
     Sphere sphere = Sphere(sphere_center, sphere_radius);
-
     float tSphere = Sphere_RayIntersection(ray, sphere);
 
-    if (tPlane > 0.0 && (tCilinder < 0.0 || tPlane < tCilinder) && (tSphere < 0.0 || tPlane < tSphere)) {
+    // --- Cone ---
+    Cone cone = Cone(cone_baseCenter, cone_vertex, cone_baseRadius);
+    float tCone = Cone_RayIntersection(ray, cone);
+
+    // plane is gray, cilinder is red, sphere is blue and cone is green:
+    if (tPlane != -1.0 && (tPlane < tCilinder || tCilinder == -1.0) && (tPlane < tSphere || tSphere == -1.0) && (tPlane < tCone || tCone == -1.0)) {
+        gl_FragColor = vec4(0.5, 0.5, 0.5, 1.0);
+    } else if (tCilinder != -1.0 && (tCilinder < tSphere || tSphere == -1.0) && (tCilinder < tCone || tCone == -1.0)) {
         gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    } else if (tCilinder > 0.0 && (tSphere < 0.0 || tCilinder < tSphere)) {
-        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-    } else if (tSphere > 0.0) {
+    } else if (tSphere != -1.0 && (tSphere < tCone || tCone == -1.0)) {
         gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+    } else if (tCone != -1.0) {
+        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
     } else {
         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
