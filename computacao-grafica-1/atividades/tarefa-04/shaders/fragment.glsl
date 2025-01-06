@@ -3,45 +3,63 @@ precision mediump float;
 // --- Inputs ---
 
 // window
-uniform float windowWidth; // 20
-uniform float windowHeight; // 20
-uniform vec3 windowPosition; // (10,10,20)
+uniform float windowWidth;
+uniform float windowHeight;
+uniform vec3 windowPosition;
 
 // canvas
-uniform float canvasWidth; // 800
-uniform float canvasHeight; // 800
-uniform float nCol; // 8
-uniform float nRow; // 8
+uniform float canvasWidth;
+uniform float canvasHeight;
+uniform float nCol;
+uniform float nRow;
 
-// Object 1: Plane
-uniform vec3 plane_point; // (0,0,0)
-uniform vec3 plane_normal; // (0,0,1)
+// Object 1: Floor
+uniform vec3 floor_point;
+uniform vec3 floor_normal;
+uniform vec3 floor_ambientReflection;
+uniform vec3 floor_diffuseReflection;
+uniform vec3 floor_specularReflection;
+uniform float floor_shininess;
 
-// Object 2: Cilinder (with no top and bottom planes)
-uniform vec3 cilinder_baseCenter; // (10,10,0)
-uniform vec3 cilinder_topCenter; // (10,10,6)
-uniform float cilinder_baseRadius; // 3
+// Object 2: Wall
+uniform vec3 wall_point;
+uniform vec3 wall_normal;
+uniform vec3 wall_ambientReflection;
+uniform vec3 wall_diffuseReflection;
+uniform vec3 wall_specularReflection;
+uniform float wall_shininess;
+
+// // Object 2: Cilinder
+// uniform vec3 cilinder_baseCenter;
+// uniform vec3 cilinder_topCenter;
+// uniform float cilinder_baseRadius;
 
 // Object 3: Sphere
-uniform vec3 sphere_center; // (10,10,10)
-uniform float sphere_radius; // 5
+uniform vec3 sphere_center;
+uniform float sphere_radius;
+uniform vec3 sphere_ambientReflection;
+uniform vec3 sphere_diffuseReflection;
+uniform vec3 sphere_specularReflection;
+uniform float sphere_shininess;
 
-// Object 4: Cone (with no bottom plane)
-uniform vec3 cone_baseCenter; // (10,10,14)
-uniform vec3 cone_vertex; // (10,10,18)
-uniform float cone_baseRadius; // 3
+// // Object 4: Cone
+// uniform vec3 cone_baseCenter;
+// uniform vec3 cone_vertex;
+// uniform float cone_baseRadius;
 
 // Light (Point)
-uniform vec3 light_position; // (10+12cos(k*(pi/6), 10+12sin(k*(pi/6)), 12)
-uniform vec3 light_intensity; // (1,1,1)
+uniform vec3 light_position;
+uniform vec3 light_intensity;
+uniform vec3 ambient_light;
 
 // Camera (Observer) or Ray
-uniform vec3 ray_origin; // (-0.392305, 16, 21)
+uniform vec3 ray_origin;
 
-// All objects are made by the same material
-uniform vec3 object_diffuseReflection; // (0.5,0.25,0.5)
-uniform vec3 object_specularReflection; // (0.5,0.25,0.5)
-uniform float object_shininess; // 2
+// --- object types ---
+#define PLANE 1
+#define CILINDER 2
+#define SPHERE 3
+#define CONE 4
 
 // --- Structs ---
 struct Ray {
@@ -71,6 +89,20 @@ struct Cone {
     float baseRadius;
 };
 
+struct Material {
+    vec3 ambientReflection;
+    vec3 diffuseReflection;
+    vec3 specularReflection;
+    float shininess;
+};
+
+struct Object {
+    int id;
+    int type;
+    float t;
+    Material material;
+    vec3 normal;
+};
 
 // --- Functions ---
 mat3 outerProduct(vec3 a, vec3 b) {
@@ -163,6 +195,16 @@ float Cilinder_RayIntersectionWithSurface(Ray ray, Cilinder cilinder) {
     }   
 }
 
+vec3 Cilinder_Normal(Cilinder cilinder, Ray ray) {
+    vec3 baseToTop = cilinder.topCenterPos - cilinder.baseCenterPos;
+    vec3 baseToRayOrigin = ray.origin - cilinder.baseCenterPos;
+
+    vec3 projection = dot(baseToRayOrigin, baseToTop) * baseToTop;
+    vec3 normal = normalize(baseToRayOrigin - projection);
+
+    return normal;
+}
+
 float Sphere_RayIntersection(Ray ray, Sphere sphere) {
     vec3 v = ray.origin - sphere.centerPos;
 
@@ -180,6 +222,13 @@ float Sphere_RayIntersection(Ray ray, Sphere sphere) {
     float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
 
     return t1 < t2 ? t1 : t2;
+}
+
+vec3 Sphere_Normal(Sphere sphere, Ray ray) {
+    vec3 p = ray.origin + Sphere_RayIntersection(ray, sphere) * ray.direction;
+    vec3 n = normalize(p - sphere.centerPos);
+
+    return n;
 }
 
 mat3 Cone_ProjectionMatrixQ(Cone cone) {
@@ -265,36 +314,80 @@ float Cone_RayIntersection(Ray ray, Cone cone) {
     }
 }
 
+vec3 Cone_Normal(Cone cone, Ray ray) {
+    vec3 p = ray.origin + Cone_RayIntersection(ray, cone) * ray.direction;
+    vec3 coneHeight = cone.vertex - cone.baseCenter;
+    vec3 baseToP = p - cone.baseCenter;
+
+    vec3 projection = dot(coneHeight, baseToP) * coneHeight;
+    vec3 normal = normalize(baseToP - projection);
+
+    return normal;
+}
+
 void main() {
     // --- Ray ---
     Ray ray = Ray(ray_origin, CurrentPosition());
 
-    // --- Plane ---
-    Plane plane = Plane(plane_point, plane_normal);
-    float tPlane = Plane_RayIntersection(ray, plane);
+    // --- Floor ---
+    Plane floor = Plane(floor_point, floor_normal);
+    float tFloor = Plane_RayIntersection(ray, floor);
+
+    // --- Wall ---
+    Plane wall = Plane(wall_point, wall_normal);
+    float tWall = Plane_RayIntersection(ray, wall);
 
     // --- Cilinder ---
-    Cilinder cilinder = Cilinder(cilinder_baseCenter, cilinder_topCenter, cilinder_baseRadius);
-    float tCilinder = Cilinder_RayIntersectionWithSurface(ray, cilinder);
+    // Cilinder cilinder = Cilinder(cilinder_baseCenter, cilinder_topCenter, cilinder_baseRadius);
+    // float tCilinder = Cilinder_RayIntersectionWithSurface(ray, cilinder);
 
     // --- Sphere ---
     Sphere sphere = Sphere(sphere_center, sphere_radius);
     float tSphere = Sphere_RayIntersection(ray, sphere);
 
     // --- Cone ---
-    Cone cone = Cone(cone_baseCenter, cone_vertex, cone_baseRadius);
-    float tCone = Cone_RayIntersection(ray, cone);
+    // Cone cone = Cone(cone_baseCenter, cone_vertex, cone_baseRadius);
+    // float tCone = Cone_RayIntersection(ray, cone);
 
-    // plane is gray, cilinder is red, sphere is blue and cone is green:
-    if (tPlane != -1.0 && (tPlane < tCilinder || tCilinder == -1.0) && (tPlane < tSphere || tSphere == -1.0) && (tPlane < tCone || tCone == -1.0)) {
-        gl_FragColor = vec4(0.5, 0.5, 0.5, 1.0);
-    } else if (tCilinder != -1.0 && (tCilinder < tSphere || tSphere == -1.0) && (tCilinder < tCone || tCone == -1.0)) {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    } else if (tSphere != -1.0 && (tSphere < tCone || tCone == -1.0)) {
-        gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
-    } else if (tCone != -1.0) {
-        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-    } else {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    // --- Objects ---
+    const int nObjects = 3;
+    Object objects[nObjects];
+    objects[0] = Object(0, PLANE, tFloor, Material(floor_ambientReflection, floor_diffuseReflection, floor_specularReflection, floor_shininess), floor.normal);
+    objects[1] = Object(1, PLANE, tWall, Material(wall_ambientReflection, wall_diffuseReflection, wall_specularReflection, wall_shininess), wall.normal);
+    objects[2] = Object(
+        2, 
+        SPHERE, 
+        tSphere, 
+        Material(sphere_ambientReflection, sphere_diffuseReflection, sphere_specularReflection, sphere_shininess),
+        Sphere_Normal(sphere, ray)
+    );
+
+
+    // --- Intersection ---
+    Object closestObject = Object(-1, -1, -1.0, Material(vec3(0.0), vec3(0.0), vec3(0.0), 0.0), vec3(0.0));
+    for (int i = 0; i < nObjects; i++) {
+        if (objects[i].t != -1.0 && (objects[i].t < closestObject.t || closestObject.t == -1.0)) {
+            closestObject = objects[i];
+        }
     }
+
+    // light vectors
+    vec3 p = ray.origin + closestObject.t * ray.direction;
+    vec3 v = normalize(ray.origin - p);
+    vec3 n = closestObject.normal;
+    vec3 l = normalize(light_position - p);
+    vec3 r = reflect(-l, n);
+
+    // light atenuation factors:
+    float fd = dot(l, n);
+    float fs = pow(dot(r, v), closestObject.material.shininess);
+
+    // light
+    vec3 ambient = closestObject.material.ambientReflection * ambient_light;
+    vec3 diffuse = closestObject.material.diffuseReflection * light_intensity * fd;
+    vec3 specular = closestObject.material.specularReflection * light_intensity * fs;
+
+    vec3 color = ambient + diffuse + specular;
+
+    gl_FragColor = vec4(color, 1.0);
 }
