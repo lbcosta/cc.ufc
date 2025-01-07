@@ -24,9 +24,14 @@ const params = {
         wall_specularReflection: [0.0, 0.0, 0.0],
         wall_shininess: 1,
     // Cilíndro:
-        // cilinder_baseCenter: [10, 10, 0], // centímetros
-        // cilinder_topCenter: [10, 10, 6],
-        // cilinder_baseRadius: 3, // centímetros
+        cilinder_baseCenter: [0, 0, -100], // centímetros
+        cilinder_baseRadius: 40/3, // centímetros
+        cilinder_height: 3*40,
+        cilinder_direction: [-1/Math.sqrt(3), 1/Math.sqrt(3), -1/Math.sqrt(3)],
+        cilinder_ambientReflection: [0.2, 0.3, 0.8],
+        cilinder_diffuseReflection: [0.2, 0.3, 0.8],
+        cilinder_specularReflection: [0.2, 0.3, 0.8],
+        cilinder_shininess: 10,
     // Esfera:
         sphere_center: [0, 0, -100], // centímetros
         sphere_radius: 40, //

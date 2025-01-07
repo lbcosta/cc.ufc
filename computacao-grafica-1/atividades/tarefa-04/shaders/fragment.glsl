@@ -1,6 +1,6 @@
 precision mediump float;
 
-#define NUMBER_OF_OBJECTS 3
+#define NUMBER_OF_OBJECTS 4
 
 // --- object types ---
     #define PLANE 1
@@ -44,6 +44,16 @@ precision mediump float;
         uniform vec3 sphere_specularReflection;
         uniform float sphere_shininess;
 
+    // Object 4: Cilinder
+        uniform vec3 cilinder_baseCenter;
+        uniform float cilinder_baseRadius;
+        uniform float cilinder_height;
+        uniform vec3 cilinder_direction;
+        uniform vec3 cilinder_ambientReflection;
+        uniform vec3 cilinder_diffuseReflection;
+        uniform vec3 cilinder_specularReflection;
+        uniform float cilinder_shininess;
+
     // Light (Point)
         uniform vec3 light_position;
         uniform vec3 light_intensity;
@@ -64,9 +74,10 @@ precision mediump float;
     };
 
     struct Cilinder {
-        vec3 baseCenterPos;
-        vec3 topCenterPos;
+        vec3 baseCenter;
         float baseRadius;
+        float height;
+        vec3 direction;
     };
 
     struct Sphere {
@@ -109,7 +120,6 @@ precision mediump float;
     // Cilinder
         Object CreateCilinder(int id, Cilinder cilinder, Material material);
         mat3 Cilinder_ProjectionMatrix(Cilinder cilinder);
-        vec3 Cilinder_BaseCenterToRayOrigin(Cilinder cilinder, Ray ray);
         bool Cilinder_ValidateIntersectionPoint(Cilinder cilinder, vec3 intersectionPoint);
         float Cilinder_RayIntersection(Ray ray, Cilinder cilinder);
         vec3 Cilinder_Normal(Cilinder cilinder, Ray ray);
@@ -156,6 +166,13 @@ precision mediump float;
                 2,
                 Sphere(sphere_center, sphere_radius),
                 Material(sphere_ambientReflection, sphere_diffuseReflection, sphere_specularReflection, sphere_shininess)
+            );
+
+        // --- Cilinder ---
+            objects[3] = CreateCilinder(
+                3,
+                Cilinder(cilinder_baseCenter, cilinder_baseRadius, cilinder_height, cilinder_direction),
+                Material(cilinder_ambientReflection, cilinder_diffuseReflection, cilinder_specularReflection, cilinder_shininess)
             );
 
         // --- Intersection ---
@@ -215,7 +232,7 @@ precision mediump float;
     mat3 Cilinder_ProjectionMatrix(Cilinder cilinder) {
         mat3 identityMatrix = mat3(1.0);
         
-        vec3 baseToTop = cilinder.topCenterPos - cilinder.baseCenterPos;
+        vec3 baseToTop = cilinder.direction;
         vec3 baseToTopNormalized = normalize(baseToTop);
         mat3 baseToTopMatrix = outerProduct(baseToTopNormalized, baseToTopNormalized);
 
@@ -223,21 +240,15 @@ precision mediump float;
         return projectionMatrix;
     }
 
-    vec3 Cilinder_BaseCenterToRayOrigin(Cilinder cilinder, Ray ray) {
-        return ray.origin - cilinder.baseCenterPos;
-    }
-
     bool Cilinder_ValidateIntersectionPoint(Cilinder cilinder, vec3 intersectionPoint) {
-        vec3 baseToTop = cilinder.topCenterPos - cilinder.baseCenterPos;
-        vec3 baseToIntersection = intersectionPoint - cilinder.baseCenterPos;
-
-        float projection = dot(baseToTop, baseToIntersection);
-        return projection >= 0.0 && projection <= dot(baseToTop, baseToTop);
+        vec3 baseToIntersection = intersectionPoint - cilinder.baseCenter;
+        float projection = dot(baseToIntersection, cilinder.direction);
+        return projection >= 0.0 && projection <= cilinder.height;
     }
 
     float Cilinder_RayIntersection(Ray ray, Cilinder cilinder) {
         mat3 projectionMatrix = Cilinder_ProjectionMatrix(cilinder);
-        vec3 baseToRayOrigin = Cilinder_BaseCenterToRayOrigin(cilinder, ray);
+        vec3 baseToRayOrigin = ray.origin - cilinder.baseCenter;
 
         float a = dot(projectionMatrix * ray.direction, ray.direction);
         float b = 2.0 * dot(projectionMatrix * ray.direction, baseToRayOrigin);
@@ -273,10 +284,9 @@ precision mediump float;
     }
 
     vec3 Cilinder_Normal(Cilinder cilinder, Ray ray) {
-        vec3 baseToTop = cilinder.topCenterPos - cilinder.baseCenterPos;
-        vec3 baseToRayOrigin = ray.origin - cilinder.baseCenterPos;
+        vec3 baseToRayOrigin = ray.origin - cilinder.baseCenter;
 
-        vec3 projection = dot(baseToRayOrigin, baseToTop) * baseToTop;
+        vec3 projection = dot(baseToRayOrigin, cilinder.direction) * cilinder.direction;
         vec3 normal = normalize(baseToRayOrigin - projection);
 
         return normal;
