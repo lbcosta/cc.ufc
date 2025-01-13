@@ -65,6 +65,7 @@ precision mediump float;
 // --- Structs ---
     struct Ray {
         vec3 origin;
+        vec3 at;
         vec3 direction;
     };
 
@@ -114,6 +115,8 @@ precision mediump float;
     // General
         mat3 outerProduct(vec3 a, vec3 b);
         vec3 CurrentPosition();
+    // Ray
+        Ray CreateRay(vec3 origin, vec3 at);
     // Plane
         Object CreatePlane(int id, Plane plane, Material material);
         float Plane_RayIntersection(Ray ray, Plane plane);
@@ -139,12 +142,12 @@ precision mediump float;
         vec3 Object_Normal(Object object, Ray ray);
         Object Objects_GetClosest(Object objects[NUMBER_OF_OBJECTS], Ray ray);
     // Light
-        bool Light_IsObstructed(vec3 lightPosition, vec3 intersectionPoint, Object objects[NUMBER_OF_OBJECTS]);
+        bool Light_IsObstructed(int closestObjectId, vec3 lightPosition, vec3 intersectionPoint, Object objects[NUMBER_OF_OBJECTS]);
         vec3 CalculatePhongLighting(Ray ray, Object closestObject, Object sceneObjects[NUMBER_OF_OBJECTS]);
 
 // --- Main ---
     void main() {
-        Ray ray = Ray(ray_origin, CurrentPosition());
+        Ray ray = CreateRay(ray_origin, CurrentPosition());
 
         Object objects[NUMBER_OF_OBJECTS];
         // --- Floor ---
@@ -205,6 +208,17 @@ precision mediump float;
         return vec3(x, y, z);
     }
 
+    // Ray
+    Ray CreateRay(vec3 origin, vec3 at) {
+        Ray ray;
+        ray.origin = origin;
+        ray.at = at;
+        ray.direction = normalize(at - origin);
+
+        return ray;
+    }
+    
+
     Object CreatePlane(int id, Plane plane, Material material) {
         Object object;
         object.id = id;
@@ -216,7 +230,15 @@ precision mediump float;
     }
 
     float Plane_RayIntersection(Ray ray, Plane plane) {
-        return dot(plane.point - ray.origin, plane.normal) / dot(ray.direction, plane.normal);
+        vec3 planeToOrigin = ray.origin - plane.point;
+        float numerator = dot(planeToOrigin, plane.normal);
+        float denominator = dot(ray.direction, plane.normal);
+
+        if (denominator == 0.0) {
+            return -1.0;
+        }
+
+        return -numerator / denominator;
     }
 
     Object CreateCilinder(int id, Cilinder cilinder, Material material) {
@@ -232,11 +254,10 @@ precision mediump float;
     mat3 Cilinder_ProjectionMatrix(Cilinder cilinder) {
         mat3 identityMatrix = mat3(1.0);
         
-        vec3 baseToTop = cilinder.direction;
-        vec3 baseToTopNormalized = normalize(baseToTop);
-        mat3 baseToTopMatrix = outerProduct(baseToTopNormalized, baseToTopNormalized);
+        vec3 cylinderAxis = normalize(cilinder.direction);
+        mat3 cylinderAxisMatrix = outerProduct(cylinderAxis, cylinderAxis);
 
-        mat3 projectionMatrix = identityMatrix - baseToTopMatrix;
+        mat3 projectionMatrix = identityMatrix - cylinderAxisMatrix;
         return projectionMatrix;
     }
 
@@ -247,17 +268,41 @@ precision mediump float;
     }
 
     float Cilinder_RayIntersection(Ray ray, Cilinder cilinder) {
-        mat3 projectionMatrix = Cilinder_ProjectionMatrix(cilinder);
-        vec3 baseToRayOrigin = ray.origin - cilinder.baseCenter;
+        mat3 M = Cilinder_ProjectionMatrix(cilinder);
+        vec3 v = ray.origin - cilinder.baseCenter;
 
-        float a = dot(projectionMatrix * ray.direction, ray.direction);
-        float b = 2.0 * dot(projectionMatrix * ray.direction, baseToRayOrigin);
-        float c = dot(projectionMatrix * baseToRayOrigin, baseToRayOrigin) - pow(cilinder.baseRadius, 2.0);
+        float a = dot(M * ray.direction, ray.direction);
+        float b = 2.0 * dot(M * ray.direction, v);
+        float c = dot(M * v, v) - pow(cilinder.baseRadius, 2.0);
+
+        if (a == 0.0) {
+            float t = -c / b;
+            vec3 intersectionPoint = ray.origin + t * ray.direction;
+            bool isValidIntersectionPoint = Cilinder_ValidateIntersectionPoint(cilinder, intersectionPoint);
+
+            if (isValidIntersectionPoint) {
+                return t;
+            } else {
+                return -1.0;
+            }
+        }
 
         float discriminant = b * b - 4.0 * a * c;
 
         if (discriminant < 0.0) {
             return -1.0;
+        }
+
+        if (discriminant == 0.0) {
+            float t = -b / (2.0 * a);
+            vec3 intersectionPoint = ray.origin + t * ray.direction;
+            bool isValidIntersectionPoint = Cilinder_ValidateIntersectionPoint(cilinder, intersectionPoint);
+
+            if (isValidIntersectionPoint) {
+                return t;
+            } else {
+                return -1.0;
+            }
         }
 
         // calculate t values
@@ -284,10 +329,11 @@ precision mediump float;
     }
 
     vec3 Cilinder_Normal(Cilinder cilinder, Ray ray) {
-        vec3 baseToRayOrigin = ray.origin - cilinder.baseCenter;
-
-        vec3 projection = dot(baseToRayOrigin, cilinder.direction) * cilinder.direction;
-        vec3 normal = normalize(baseToRayOrigin - projection);
+        float t = Cilinder_RayIntersection(ray, cilinder);
+        vec3 intersectionPoint = ray.origin + t * ray.direction;
+        vec3 baseToIntersection = intersectionPoint - cilinder.baseCenter;
+        vec3 projection = dot(cilinder.direction, baseToIntersection) * cilinder.direction;
+        vec3 normal = normalize(baseToIntersection - projection);
 
         return normal;
     }
@@ -305,8 +351,8 @@ precision mediump float;
     float Sphere_RayIntersection(Ray ray, Sphere sphere) {
         vec3 v = ray.origin - sphere.centerPos;
 
-        float a = dot(ray.direction, ray.direction);
-        float b = 2.0 * dot(v, ray.direction);
+        float a = dot(ray.at, ray.at);
+        float b = 2.0 * dot(v, ray.at);
         float c = dot(v, v) - sphere.radius * sphere.radius;
 
         float discriminant = b * b - 4.0 * a * c;
@@ -322,7 +368,7 @@ precision mediump float;
     }
 
     vec3 Sphere_Normal(Sphere sphere, Ray ray) {
-        vec3 p = ray.origin + Sphere_RayIntersection(ray, sphere) * ray.direction;
+        vec3 p = ray.origin + Sphere_RayIntersection(ray, sphere) * ray.at;
         vec3 n = normalize(p - sphere.centerPos);
 
         return n;
@@ -370,22 +416,22 @@ precision mediump float;
         float coneHeight = length(cone.vertex - cone.baseCenter);
 
         // a = (d.M.d.h^2) - (d.Q.d.r^2)
-        float a = (dot(projectionMatrixM * ray.direction, ray.direction) * pow(coneHeight, 2.0)) - (dot(projectionMatrixQ * ray.direction, ray.direction) * pow(cone.baseRadius, 2.0));
+        float a = (dot(projectionMatrixM * ray.at, ray.at) * pow(coneHeight, 2.0)) - (dot(projectionMatrixQ * ray.at, ray.at) * pow(cone.baseRadius, 2.0));
 
         // b = (2.d.M.s.h^2) + (2.d.Q.d.H.r^2) - (2.d.Q.s.r^2)
-        float b = (2.0 * dot(projectionMatrixM * ray.direction, baseToRayOrigin) * pow(coneHeight, 2.0)) 
-        + (2.0 * dot(projectionMatrixQ * ray.direction, ray.direction) * coneHeight * pow(cone.baseRadius, 2.0)) 
-        - (2.0 * dot(projectionMatrixQ * ray.direction, baseToRayOrigin) * pow(cone.baseRadius, 2.0));
+        float b = (2.0 * dot(projectionMatrixM * ray.at, baseToRayOrigin) * pow(coneHeight, 2.0)) 
+        + (2.0 * dot(projectionMatrixQ * ray.at, ray.at) * coneHeight * pow(cone.baseRadius, 2.0)) 
+        - (2.0 * dot(projectionMatrixQ * ray.at, baseToRayOrigin) * pow(cone.baseRadius, 2.0));
 
         // c = (s.M.s.h^2) + (2.d.Q.s.h.r^2) - (s.Q.s.r^2) - (h^2.r^2)
         float c = (dot(projectionMatrixM * baseToRayOrigin, baseToRayOrigin) * pow(coneHeight, 2.0))
-        + (2.0 * dot(projectionMatrixQ * baseToRayOrigin, ray.direction) * coneHeight * pow(cone.baseRadius, 2.0))
+        + (2.0 * dot(projectionMatrixQ * baseToRayOrigin, ray.at) * coneHeight * pow(cone.baseRadius, 2.0))
         - (dot(projectionMatrixQ * baseToRayOrigin, baseToRayOrigin) * pow(cone.baseRadius, 2.0))
         - (pow(coneHeight, 2.0) * pow(cone.baseRadius, 2.0));
 
         if (a == 0.0) {
             float t1 = -c / b;
-            vec3 intersectionPoint1 = ray.origin + t1 * ray.direction;
+            vec3 intersectionPoint1 = ray.origin + t1 * ray.at;
             bool isValidIntersectionPoint1 = Cone_ValidateIntersectionPoint(cone, intersectionPoint1);
 
             if (isValidIntersectionPoint1) {
@@ -404,8 +450,8 @@ precision mediump float;
         float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
         float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
 
-        vec3 intersectionPoint1 = ray.origin + t1 * ray.direction;
-        vec3 intersectionPoint2 = ray.origin + t2 * ray.direction;
+        vec3 intersectionPoint1 = ray.origin + t1 * ray.at;
+        vec3 intersectionPoint2 = ray.origin + t2 * ray.at;
 
         bool isValidIntersectionPoint1 = Cone_ValidateIntersectionPoint(cone, intersectionPoint1);
         bool isValidIntersectionPoint2 = Cone_ValidateIntersectionPoint(cone, intersectionPoint2);
@@ -422,7 +468,7 @@ precision mediump float;
     }
 
     vec3 Cone_Normal(Cone cone, Ray ray) {
-        vec3 p = ray.origin + Cone_RayIntersection(ray, cone) * ray.direction;
+        vec3 p = ray.origin + Cone_RayIntersection(ray, cone) * ray.at;
         vec3 coneHeight = cone.vertex - cone.baseCenter;
         vec3 baseToP = p - cone.baseCenter;
 
@@ -463,33 +509,38 @@ precision mediump float;
         return closestObject;
     }
 
-    bool Light_IsObstructed(vec3 lightPosition, vec3 intersectionPoint, Object objects[NUMBER_OF_OBJECTS]) {
-        Ray ray = Ray(intersectionPoint, lightPosition - intersectionPoint);
-        Object closestObject = Objects_GetClosest(objects, ray);
-        float t = Object_RayIntersection(closestObject, ray);
-        return t > 0.0 && t < 1.0;
+    bool Light_IsObstructed(int closestObjectId, vec3 lightPosition, vec3 intersectionPoint, Object objects[NUMBER_OF_OBJECTS]) {
+        Ray lightRay = CreateRay(lightPosition, intersectionPoint);
+        Object closestObjectToLightRay = Objects_GetClosest(objects, lightRay);
+        float lightT = Object_RayIntersection(closestObjectToLightRay, lightRay);
+        
+        bool isLightTValid = lightT > 0.0;
+        bool isClosestObjectToLightRayDifferent = closestObjectToLightRay.id != closestObjectId;
+        bool isLightRayTooLong = lightT < length(lightPosition - intersectionPoint);
+
+        return isLightTValid && isClosestObjectToLightRayDifferent && isLightRayTooLong;
     }
 
     vec3 CalculatePhongLighting(Ray ray, Object closestObject, Object sceneObjects[NUMBER_OF_OBJECTS]) {
-        float objectIntersection = Object_RayIntersection(closestObject, ray);
-        vec3 intersectionPoint = ray.origin + objectIntersection * ray.direction;
+        float t = Object_RayIntersection(closestObject, ray);
+        vec3 p = ray.origin + t * ray.direction;
         
         vec3 ambient = closestObject.material.ambientReflection * ambient_light;
         vec3 diffuse = vec3(0.0);
         vec3 specular = vec3(0.0);
 
-        bool isLightObstructed = Light_IsObstructed(light_position, intersectionPoint, sceneObjects);
+        bool isLightObstructed = Light_IsObstructed(closestObject.id, light_position, p, sceneObjects);
 
         if (!isLightObstructed) {
             // light vectors
-                vec3 v = normalize(ray.origin - intersectionPoint);
+                vec3 v = -ray.direction;
                 vec3 n = Object_Normal(closestObject, ray);
-                vec3 l = normalize(light_position - intersectionPoint);
-                vec3 r = reflect(-l, n);
+                vec3 l = normalize(light_position - p);
+                vec3 r = 2.0 * dot(n, l) * n - l;
 
             // atenuation factors
                 float fd = max(dot(n, l), 0.0);
-                float fs = pow(max(dot(r, v), 0.0), closestObject.material.shininess);
+                float fs = pow(max(dot(v, r), 0.0), closestObject.material.shininess);
 
             diffuse = closestObject.material.diffuseReflection * light_intensity * fd;
             specular = closestObject.material.specularReflection * light_intensity * fs;
