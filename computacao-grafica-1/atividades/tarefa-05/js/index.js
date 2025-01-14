@@ -66,7 +66,13 @@ const params = {
         cone_specularReflection: [0, 1, 0.498],
         cone_shininess: 10,
     // Cubo:
-        // ...
+        cube_edge: 40,
+        cube_baseCenter: [0, -150, -165],
+        cube_baseNormal: [0, 1, 0],
+        cube_ambientReflection: [1, 0.078, 0.576],
+        cube_diffuseReflection: [1, 0.078, 0.576],
+        cube_specularReflection: [1, 0.078, 0.576],
+        cube_shininess: 10,
     // Esfera:
         sphere_center: [0, 95, -200],
         sphere_radius: 5,

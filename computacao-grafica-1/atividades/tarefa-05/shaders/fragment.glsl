@@ -1,12 +1,13 @@
 precision mediump float;
 
-#define NUMBER_OF_OBJECTS 8
+#define NUMBER_OF_OBJECTS 9
 
 // --- object types ---
     #define PLANE 1
     #define CILINDER 2
     #define SPHERE 3
     #define CONE 4
+    #define CUBE 5
 
 // --- Inputs ---
     // window
@@ -81,7 +82,13 @@ precision mediump float;
         uniform float cone_shininess;
 
     // Object 8: Cube
-    // ...
+        uniform float cube_edge;
+        uniform vec3 cube_baseCenter;
+        uniform vec3 cube_baseNormal;
+        uniform vec3 cube_ambientReflection;
+        uniform vec3 cube_diffuseReflection;
+        uniform vec3 cube_specularReflection;
+        uniform float cube_shininess;
 
     // Object 9: Sphere
         uniform vec3 sphere_center;
@@ -130,6 +137,12 @@ precision mediump float;
         vec3 direction;
     };
 
+    struct Cube {
+        float edge;
+        vec3 baseCenter;
+        vec3 baseNormal;
+    };
+
     struct Material {
         vec3 ambientReflection;
         vec3 diffuseReflection;
@@ -145,6 +158,7 @@ precision mediump float;
             Cilinder cilinder;
             Sphere sphere;
             Cone cone;
+            Cube cube;
         /* } */
         Material material;
     };
@@ -173,6 +187,8 @@ precision mediump float;
         bool Cone_ValidateIntersectionPoint(Cone cone, vec3 intersectionPoint);
         float Cone_RayIntersection(Ray ray, Cone cone);
         vec3 Cone_Normal(Cone cone, Ray ray);
+    // Cube
+        Object CreateCube(int id, Cube cube, Material material);
     // Object
         float Object_RayIntersection(Object object, Ray ray);
         vec3 Object_Normal(Object object, Ray ray);
@@ -235,9 +251,16 @@ precision mediump float;
                 Material(cone_ambientReflection, cone_diffuseReflection, cone_specularReflection, cone_shininess)
             );
 
-        // --- Sphere ---
-            objects[7] = CreateSphere(
+        // --- Cube ---
+            objects[7] = CreateCube(
                 7,
+                Cube(cube_edge, cube_baseCenter, cube_baseNormal),
+                Material(cube_ambientReflection, cube_diffuseReflection, cube_specularReflection, cube_shininess)
+            );
+
+        // --- Sphere ---
+            objects[8] = CreateSphere(
+                8,
                 Sphere(sphere_center, sphere_radius),
                 Material(sphere_ambientReflection, sphere_diffuseReflection, sphere_specularReflection, sphere_shininess)
             );
@@ -537,6 +560,16 @@ precision mediump float;
         vec3 normal = normalize(baseToIntersection - projection);
 
         return normal;
+    }
+
+    Object CreateCube(int id, Cube cube, Material material) {
+        Object object;
+        object.id = id;
+        object.type = CUBE;
+        object.cube = cube;
+        object.material = material;
+
+        return object;
     }
 
     float Object_RayIntersection(Object object, Ray ray) {
