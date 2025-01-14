@@ -351,13 +351,13 @@ precision mediump float;
     float Sphere_RayIntersection(Ray ray, Sphere sphere) {
         vec3 v = ray.origin - sphere.centerPos;
 
-        float a = dot(ray.at, ray.at);
-        float b = 2.0 * dot(v, ray.at);
-        float c = dot(v, v) - sphere.radius * sphere.radius;
+        float a = dot(ray.direction, ray.direction);
+        float b = 2.0 * dot(v, ray.direction);
+        float c = dot(v, v) - pow(sphere.radius, 2.0);
 
         float discriminant = b * b - 4.0 * a * c;
 
-        if (discriminant < 0.0) {
+        if (discriminant <= 0.0) {
             return -1.0;
         }
 
@@ -368,7 +368,7 @@ precision mediump float;
     }
 
     vec3 Sphere_Normal(Sphere sphere, Ray ray) {
-        vec3 p = ray.origin + Sphere_RayIntersection(ray, sphere) * ray.at;
+        vec3 p = ray.origin + Sphere_RayIntersection(ray, sphere) * ray.direction;
         vec3 n = normalize(p - sphere.centerPos);
 
         return n;
