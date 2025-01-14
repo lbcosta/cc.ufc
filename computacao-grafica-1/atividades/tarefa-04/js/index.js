@@ -1,4 +1,6 @@
 // # Configuração da Cena:
+const sphereCenter = [0, 0, -100]
+const sphereRadius = 40
 const params = {
     // Janela:
         windowWidth: 60, // centímetros
@@ -24,17 +26,17 @@ const params = {
         wall_specularReflection: [0.0, 0.0, 0.0],
         wall_shininess: 1,
     // Cilíndro:
-        cilinder_baseCenter: [0, 0, -100], // centímetros
-        cilinder_baseRadius: 40/3, // centímetros
-        cilinder_height: 3*40,
+        cilinder_baseCenter: sphereCenter, // centímetros
+        cilinder_baseRadius: sphereRadius/3, // centímetros
+        cilinder_height: 3*sphereRadius,
         cilinder_direction: [-1/Math.sqrt(3), 1/Math.sqrt(3), -1/Math.sqrt(3)],
         cilinder_ambientReflection: [0.2, 0.3, 0.8],
         cilinder_diffuseReflection: [0.2, 0.3, 0.8],
         cilinder_specularReflection: [0.2, 0.3, 0.8],
         cilinder_shininess: 10,
     // Esfera:
-        sphere_center: [0, 0, -100], // centímetros
-        sphere_radius: 40, //
+        sphere_center: sphereCenter, // centímetros
+        sphere_radius: sphereRadius, //
         sphere_ambientReflection: [0.7, 0.2, 0.2],
         sphere_diffuseReflection: [0.7, 0.2, 0.2],
         sphere_specularReflection: [0.7, 0.2, 0.2],
@@ -42,9 +44,14 @@ const params = {
     // Raio:
         ray_origin: [0, 0, 0], // centímetros
     // Cone:
-        // cone_baseCenter: [10, 10, 14], // centímetros
-        // cone_vertex: [10, 10, 18],
-        // cone_baseRadius: 3, // centímetros
+        // cone_baseCenter will be calculated.
+        cone_baseRadius: 1.5*sphereRadius,
+        cone_height: (1.5*sphereRadius)/3,
+        cone_direction: [-1/Math.sqrt(3), 1/Math.sqrt(3), -1/Math.sqrt(3)],
+        cone_ambientReflection: [0.8, 0.3, 0.2],
+        cone_diffuseReflection: [0.8, 0.3, 0.2],
+        cone_specularReflection: [0.8, 0.3, 0.2],
+        cone_shininess: 10,
     // Luz:
         light_position: [0, 60, -30],
         light_intensity: [0.7, 0.7, 0.7],

@@ -1,6 +1,6 @@
 precision mediump float;
 
-#define NUMBER_OF_OBJECTS 4
+#define NUMBER_OF_OBJECTS 5
 
 // --- object types ---
     #define PLANE 1
@@ -54,6 +54,15 @@ precision mediump float;
         uniform vec3 cilinder_specularReflection;
         uniform float cilinder_shininess;
 
+    // Object 5: Cone
+        uniform float cone_baseRadius;
+        uniform float cone_height;
+        uniform vec3 cone_direction;
+        uniform vec3 cone_ambientReflection;
+        uniform vec3 cone_diffuseReflection;
+        uniform vec3 cone_specularReflection;
+        uniform float cone_shininess;
+
     // Light (Point)
         uniform vec3 light_position;
         uniform vec3 light_intensity;
@@ -88,8 +97,9 @@ precision mediump float;
 
     struct Cone {
         vec3 baseCenter;
-        vec3 vertex;
         float baseRadius;
+        float height;
+        vec3 direction;
     };
 
     struct Material {
@@ -132,8 +142,6 @@ precision mediump float;
         vec3 Sphere_Normal(Sphere sphere, Ray ray);
     // Cone
         Object CreateCone(int id, Cone cone, Material material);
-        mat3 Cone_ProjectionMatrixQ(Cone cone);
-        mat3 Cone_ProjectionMatrixM(Cone cone);
         bool Cone_ValidateIntersectionPoint(Cone cone, vec3 intersectionPoint);
         float Cone_RayIntersection(Ray ray, Cone cone);
         vec3 Cone_Normal(Cone cone, Ray ray);
@@ -177,6 +185,15 @@ precision mediump float;
                 Cilinder(cilinder_baseCenter, cilinder_baseRadius, cilinder_height, cilinder_direction),
                 Material(cilinder_ambientReflection, cilinder_diffuseReflection, cilinder_specularReflection, cilinder_shininess)
             );
+
+        // --- Cone ---
+            vec3 coneBaseCenter = cilinder_baseCenter + cilinder_height * cilinder_direction;
+            objects[4] = CreateCone(
+                4,
+                Cone(coneBaseCenter, cone_baseRadius, cone_height, cone_direction),
+                Material(cone_ambientReflection, cone_diffuseReflection, cone_specularReflection, cone_shininess)
+            );
+
 
         // --- Intersection ---
         Object closestObject = Objects_GetClosest(objects, ray);
@@ -384,54 +401,39 @@ precision mediump float;
         return object;
     }
 
-    mat3 Cone_ProjectionMatrixQ(Cone cone) {
-        vec3 baseToVertex = cone.vertex - cone.baseCenter;
-        vec3 baseToVertexNormalized = normalize(baseToVertex);
-        mat3 baseToVertexMatrix = outerProduct(baseToVertexNormalized, baseToVertexNormalized);
-
-        return baseToVertexMatrix;
-    }
-
-    mat3 Cone_ProjectionMatrixM(Cone cone) {
-        mat3 identityMatrix = mat3(1.0);
-        mat3 baseToVertexMatrix = Cone_ProjectionMatrixQ(cone);
-
-        mat3 projectionMatrix = identityMatrix - baseToVertexMatrix;
-        return projectionMatrix;
-    }
-
     bool Cone_ValidateIntersectionPoint(Cone cone, vec3 intersectionPoint) {
-        vec3 coneHeight = cone.vertex - cone.baseCenter;
         vec3 baseToIntersection = intersectionPoint - cone.baseCenter;
-
-        float projection = dot(coneHeight, baseToIntersection);
-        return projection >= 0.0 && projection <= dot(coneHeight, coneHeight);
+        float projection = dot(baseToIntersection, cone.direction);
+        return projection >= 0.0 && projection <= cone.height;
     }
 
     float Cone_RayIntersection(Ray ray, Cone cone) {
-        mat3 projectionMatrixM = Cone_ProjectionMatrixM(cone);
-        mat3 projectionMatrixQ = Cone_ProjectionMatrixQ(cone);
-        vec3 baseToRayOrigin = ray.origin - cone.baseCenter;
-
-        float coneHeight = length(cone.vertex - cone.baseCenter);
+        vec3 coneAxis = normalize(cone.direction);
+        mat3 Q = outerProduct(coneAxis, coneAxis);
+        mat3 M = mat3(1.0) - Q;
+        vec3 s = ray.origin - cone.baseCenter;
 
         // a = (d.M.d.h^2) - (d.Q.d.r^2)
-        float a = (dot(projectionMatrixM * ray.at, ray.at) * pow(coneHeight, 2.0)) - (dot(projectionMatrixQ * ray.at, ray.at) * pow(cone.baseRadius, 2.0));
+        float a1 = (dot(M * ray.direction, ray.direction) * pow(cone.height, 2.0));
+        float a2 = (dot(Q * ray.direction, ray.direction) * pow(cone.baseRadius, 2.0));
+        float a = a1 - a2;
 
         // b = (2.d.M.s.h^2) + (2.d.Q.d.H.r^2) - (2.d.Q.s.r^2)
-        float b = (2.0 * dot(projectionMatrixM * ray.at, baseToRayOrigin) * pow(coneHeight, 2.0)) 
-        + (2.0 * dot(projectionMatrixQ * ray.at, ray.at) * coneHeight * pow(cone.baseRadius, 2.0)) 
-        - (2.0 * dot(projectionMatrixQ * ray.at, baseToRayOrigin) * pow(cone.baseRadius, 2.0));
+        float b1 = 2.0 * dot(M * ray.direction, s) * pow(cone.height, 2.0);
+        float b2 = 2.0 * dot(Q * cone.direction, ray.direction) * cone.height * pow(cone.baseRadius, 2.0);
+        float b3 = 2.0 * dot(Q * ray.direction, s) * pow(cone.baseRadius, 2.0);
+        float b = b1 + b2 - b3;
 
         // c = (s.M.s.h^2) + (2.d.Q.s.h.r^2) - (s.Q.s.r^2) - (h^2.r^2)
-        float c = (dot(projectionMatrixM * baseToRayOrigin, baseToRayOrigin) * pow(coneHeight, 2.0))
-        + (2.0 * dot(projectionMatrixQ * baseToRayOrigin, ray.at) * coneHeight * pow(cone.baseRadius, 2.0))
-        - (dot(projectionMatrixQ * baseToRayOrigin, baseToRayOrigin) * pow(cone.baseRadius, 2.0))
-        - (pow(coneHeight, 2.0) * pow(cone.baseRadius, 2.0));
+        float c1 = dot(M * s, s) * pow(cone.height, 2.0);
+        float c2 = 2.0 * dot(Q * s, cone.direction) * cone.height * pow(cone.baseRadius, 2.0);
+        float c3 = dot(Q * s, s) * pow(cone.baseRadius, 2.0);
+        float c4 = pow(cone.height, 2.0) * pow(cone.baseRadius, 2.0);
+        float c = c1 + c2 - c3 - c4;
 
         if (a == 0.0) {
             float t1 = -c / b;
-            vec3 intersectionPoint1 = ray.origin + t1 * ray.at;
+            vec3 intersectionPoint1 = ray.origin + t1 * ray.direction;
             bool isValidIntersectionPoint1 = Cone_ValidateIntersectionPoint(cone, intersectionPoint1);
 
             if (isValidIntersectionPoint1) {
@@ -447,11 +449,23 @@ precision mediump float;
             return -1.0;
         }
 
+        if (discriminant == 0.0) {
+            float t = -b / (2.0 * a);
+            vec3 intersectionPoint = ray.origin + t * ray.direction;
+            bool isValidIntersectionPoint = Cone_ValidateIntersectionPoint(cone, intersectionPoint);
+
+            if (isValidIntersectionPoint) {
+                return t;
+            } else {
+                return -1.0;
+            }
+        }
+
         float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
         float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
 
-        vec3 intersectionPoint1 = ray.origin + t1 * ray.at;
-        vec3 intersectionPoint2 = ray.origin + t2 * ray.at;
+        vec3 intersectionPoint1 = ray.origin + t1 * ray.direction;
+        vec3 intersectionPoint2 = ray.origin + t2 * ray.direction;
 
         bool isValidIntersectionPoint1 = Cone_ValidateIntersectionPoint(cone, intersectionPoint1);
         bool isValidIntersectionPoint2 = Cone_ValidateIntersectionPoint(cone, intersectionPoint2);
@@ -468,12 +482,11 @@ precision mediump float;
     }
 
     vec3 Cone_Normal(Cone cone, Ray ray) {
-        vec3 p = ray.origin + Cone_RayIntersection(ray, cone) * ray.at;
-        vec3 coneHeight = cone.vertex - cone.baseCenter;
-        vec3 baseToP = p - cone.baseCenter;
-
-        vec3 projection = dot(coneHeight, baseToP) * coneHeight;
-        vec3 normal = normalize(baseToP - projection);
+        float t = Cone_RayIntersection(ray, cone);
+        vec3 intersectionPoint = ray.origin + t * ray.direction;
+        vec3 baseToIntersection = intersectionPoint - cone.baseCenter;
+        vec3 projection = dot(cone.direction, baseToIntersection) * cone.direction;
+        vec3 normal = normalize(baseToIntersection - projection);
 
         return normal;
     }
