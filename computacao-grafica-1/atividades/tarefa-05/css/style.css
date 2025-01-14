@@ -1,0 +1,13 @@
+body {
+    display: flex; gap: 50px; justify-content: center; align-items: center; height: 100vh; margin: 0;
+    background: #0F2027;
+    background: -webkit-linear-gradient(to right, #2C5364, #203A43, #0F2027);
+    background: linear-gradient(to right, #2C5364, #203A43, #0F2027);
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+canvas {
+    border: 1px solid black;
+    box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.5);
+}
