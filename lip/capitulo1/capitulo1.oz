@@ -36,3 +36,15 @@ L=[5 6 7 8]
 declare
 L=[5 6 7 8]
 case L of H|T then {Browse H} {Browse T} end
+
+% LAZY EVALUATION
+declare
+fun lazy {Ints N}
+    N|{Ints N+1}
+end
+declare L={Ints 0}
+{Browse L}
+
+{Browse L.1}
+
+case L of A|B|C|_ then {Browse A+B+C} end
